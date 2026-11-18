@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from './api';
+import { get } from './api';
 
 /**
  * Load data from the backend.
@@ -17,7 +17,7 @@ export function useResource(path) {
     latest.current = path;
     setState((s) => ({ ...s, loading: true }));
     try {
-      const data = await api.get(path);
+      const { data } = await get(path);
       if (latest.current === path) setState({ data, error: null, loading: false });
     } catch (error) {
       if (latest.current === path) setState((s) => ({ ...s, error, loading: false }));
@@ -35,7 +35,7 @@ export function useResource(path) {
 /**
  * Run a write action with busy/error state and optional confirmation.
  *   const { run, busy, error } = useAction();
- *   run(() => api.del(`/admin/x/${id}`), { confirm: 'Delete?', success: 'Deleted', after: reload })
+ *   run(() => del(`/admin/x/${id}`), { confirm: 'Delete?', success: 'Deleted', after: reload })
  */
 export function useAction(toast) {
   const [busy, setBusy] = useState(false);

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, use, useEffect, useState } from 'react';
-import { api, session } from '@/lib/api';
+import { get } from '@/lib/api';
 import { can, PERMISSIONS as P, ROLE_BADGE } from '@/lib/roles';
 import { ToastProvider } from './admin/kit';
 
@@ -36,10 +36,16 @@ export function AdminShell({ children }) {
   const [counts, setCounts] = useState({});
 
   useEffect(() => {
-    session
-      .get()
-      .then(({ user }) => (user.isAdmin ? setMe(user) : setDenied(true)))
-      .catch(() => router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`));
+    if (!localStorage.getItem('token')) {
+      router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
+      return;
+    }
+    get('/auth/me')
+      .then((res) => (res.data.user.isAdmin ? setMe(res.data.user) : setDenied(true)))
+      .catch(() => {
+        localStorage.removeItem('token');
+        router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
+      });
     // Only on first load of the admin area
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -47,14 +53,13 @@ export function AdminShell({ children }) {
   // Unread-feedback badge in the menu, refreshed when navigating
   useEffect(() => {
     if (!me || !can(me, P.FEEDBACK_MANAGE)) return;
-    api
-      .get('/admin/feedback?status=new')
-      .then((d) => setCounts({ feedback: d.counts?.new ?? 0 }))
+    get('/admin/feedback?status=new')
+      .then((res) => setCounts({ feedback: res.data.counts?.new ?? 0 }))
       .catch(() => {});
   }, [me, pathname]);
 
   const signOut = async () => {
-    await session.logout().catch(() => {});
+    localStorage.removeItem('token');
     router.replace('/admin/login');
     router.refresh();
   };

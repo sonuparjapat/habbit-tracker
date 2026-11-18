@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Badge, DataTable, ErrorBox, PageHeader, Pagination } from '@/components/admin/kit';
-import { fmtDateTime } from '@/lib/api';
+import { fmtDateTime } from '@/lib/format';
 import { useResource } from '@/lib/useApi';
 
 const describe = (meta) =>

@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { Badge, ErrorBox, Field, PageHeader, Section, Spinner, Toggle, useToast } from '@/components/admin/kit';
-import { api, timeAgo } from '@/lib/api';
+import { del, put } from '@/lib/api';
+import { timeAgo } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
 
 /**
@@ -65,7 +66,7 @@ export default function SettingsPage() {
     });
 
   const save = () =>
-    run(() => api.put('/admin/settings', { values: Object.fromEntries(dirtyKeys.map((k) => [k, clean(defs[k], draft[k])])) }), {
+    run(() => put('/admin/settings', { values: Object.fromEntries(dirtyKeys.map((k) => [k, clean(defs[k], draft[k])])) }), {
       success: `Saved ${dirtyKeys.length} setting${dirtyKeys.length > 1 ? 's' : ''}. The app picks it up within a minute.`,
       after: async () => {
         setDraft({});
@@ -74,7 +75,7 @@ export default function SettingsPage() {
     });
 
   const reset = (key) =>
-    run(() => api.del(`/admin/settings/${key}`), {
+    run(() => del(`/admin/settings/${key}`), {
       confirm: `Reset “${defs[key].label}” to its default?`,
       success: 'Reset to default',
       after: async () => {

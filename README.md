@@ -124,13 +124,13 @@ npm run build && npm start   # production
 web/src/app/
   (site)/page.js              public homepage
   admin/login/                admin sign-in
-  admin/(panel)/              dashboard · users · templates · audit (protected)
-  api/session/route.js        sign in / out — stores the backend token in an httpOnly cookie
-  api/backend/[...path]/      server-side forwarder to the backend (allow-listed paths only)
-web/src/proxy.js              redirects signed-out visitors away from /admin
+  admin/(panel)/              dashboard · users · feedback · templates · announcements · settings · system · audit
+web/src/lib/api.js            axios: get / post / put / patch / del → returns the response (use res.data)
+web/src/lib/useApi.js         small hooks for loading data and running actions in admin pages
+web/src/components/admin/kit.js  shared admin UI (tables, forms, modals, toasts)
 ```
 
-The browser never sees the backend token. It lives in an httpOnly cookie, and every API call goes through the Next.js server, which attaches it. The backend still checks the admin role on every request. To add the **user web app** later, create pages under a new route group (for example `src/app/(app)/today/page.js`) and reuse `@/lib/api` and `/api/session`. The forwarder already allows the user endpoints.
+The website calls the backend directly with axios. After admin login the token is saved in `localStorage` and sent as `Authorization: Bearer …`; the backend checks the role on every request. The backend must allow the website's address in `CORS_ORIGIN`. To add the **user web app** later, create pages under a new route group (e.g. `src/app/(app)/today/page.js`) and call the same `get/post/…` functions.
 
 The admin panel has four pages:
 - **Dashboard:** users, active today/week/month, sign-ups chart, trackers by category, activity
@@ -162,9 +162,7 @@ In development the app reaches the backend on the computer running Metro (same W
 | | | `TERMS_VERSION` | | bump when Terms/Privacy change |
 | | | `AWS_REGION` / `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_BUCKET_NAME` | later | reserved for S3 file storage |
 | | | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | later | reserved for Premium payments |
-| web | `web/.env.local` | `API_URL` | ✅ | `http://localhost:4000` · `https://api.yourdomain.com` (server-only) |
-| | | `SESSION_COOKIE_NAME` | | `anchor_session` |
-| | | `SESSION_MAX_AGE_DAYS` | | `30` (match `JWT_EXPIRES_IN`) |
+| web | `web/.env.local` | `NEXT_PUBLIC_API_URL` | ✅ | `http://localhost:4000/api` · `https://habbit-tracker-sefr.onrender.com/api` |
 | | | `NEXT_PUBLIC_APP_NAME` | | `Anchor` |
 | | | `NEXT_PUBLIC_SITE_URL` | | `https://yourdomain.com` |
 | | | `NEXT_PUBLIC_PLAY_STORE_URL` | | Play Store link once published |
@@ -179,7 +177,7 @@ Each app has a commented `.env.example`. `NEXT_PUBLIC_*` and `EXPO_PUBLIC_*` val
 
 1. **Database:** RDS PostgreSQL 15+ (`DB_SSL=true`)
 2. **API:** run `node backend/src/index.js` on Elastic Beanstalk / ECS / Lightsail / EC2 behind HTTPS (e.g. `api.yourdomain.com`). Tables are created on first start.
-3. **Website:** deploy `web/` to Vercel or AWS Amplify (or `npm run build && npm start` on a server) at `yourdomain.com`, with `API_URL=https://api.yourdomain.com`.
+3. **Website:** deploy `web/` to Vercel or AWS Amplify (or `npm run build && npm start` on a server) at `yourdomain.com`, with `NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api`, and add the website address to the backend’s `CORS_ORIGIN`.
 4. **Email:** verify your domain in SES, request production access, and set `EMAIL_PROVIDER=ses`
 5. **App:** `npx eas-cli@latest build -p android --profile production`, then `eas submit -p android`
 

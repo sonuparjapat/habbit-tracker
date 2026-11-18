@@ -22,5 +22,5 @@ export const PERMISSIONS = Object.freeze({
   SYSTEM_VIEW: 'system.view',
 });
 
-/** `me` is the signed-in user from /api/session (it carries its own permissions list). */
+/** `me` is the signed-in user from GET /auth/me (it carries its own permissions list). */
 export const can = (me, permission) => Boolean(me?.permissions?.includes(permission));

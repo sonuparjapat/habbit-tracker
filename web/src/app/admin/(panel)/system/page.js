@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { Badge, DataTable, ErrorBox, Field, PageHeader, Section, Spinner, StatCard, useToast } from '@/components/admin/kit';
 import { useAdmin } from '@/components/AdminShell';
-import { api, fmtDateTime } from '@/lib/api';
+import { post } from '@/lib/api';
+import { fmtDateTime } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
 
 const uptime = (s) => (s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${(s / 3600).toFixed(1)} h` : `${(s / 86400).toFixed(1)} days`);
@@ -49,7 +50,7 @@ export default function SystemPage() {
             <Field label="Send a test email to">
               <input className="input" type="email" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 280 }} />
             </Field>
-            <button className="btn btn-primary" disabled={busy || !to.includes('@')} onClick={() => run(() => api.post('/admin/system/test-email', { to }), { success: `Test email sent to ${to}` })}>
+            <button className="btn btn-primary" disabled={busy || !to.includes('@')} onClick={() => run(() => post('/admin/system/test-email', { to }), { success: `Test email sent to ${to}` })}>
               {busy ? 'Sending…' : 'Send test email'}
             </button>
           </div>

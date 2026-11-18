@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Badge, Drawer, Empty, ErrorBox, Field, PageHeader, Pagination, Spinner, Tabs, useToast } from '@/components/admin/kit';
-import { api, fmtDateTime, timeAgo } from '@/lib/api';
+import { del, patch } from '@/lib/api';
+import { fmtDateTime, timeAgo } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
 
 const KINDS = { bug: { label: 'Bug', tone: 'danger' }, idea: { label: 'Idea', tone: 'info' }, question: { label: 'Question', tone: 'warning' }, other: { label: 'Other', tone: 'neutral' } };
@@ -65,7 +66,7 @@ function FeedbackDrawer({ item, onClose, onChanged }) {
   const toast = useToast();
   const [note, setNote] = useState(item.adminNote ?? '');
   const { run, busy } = useAction(toast);
-  const update = (body, success) => run(() => api.patch(`/admin/feedback/${item.id}`, body), { success, after: onChanged });
+  const update = (body, success) => run(() => patch(`/admin/feedback/${item.id}`, body), { success, after: onChanged });
   const subject = encodeURIComponent(`Re: your ${KINDS[item.kind].label.toLowerCase()} — Anchor`);
   const quoted = encodeURIComponent(`\n\n---\nYou wrote:\n${item.message}`);
 
@@ -95,7 +96,7 @@ function FeedbackDrawer({ item, onClose, onChanged }) {
         {item.status !== 'new' ? <button className="btn" disabled={busy} onClick={() => update({ status: 'new' }, 'Moved back to New')}>Reopen</button> : null}
         {note !== (item.adminNote ?? '') ? <button className="btn" disabled={busy} onClick={() => update({ adminNote: note || null }, 'Note saved')}>Save note</button> : null}
       </div>
-      <button className="btn btn-danger" disabled={busy} onClick={() => run(() => api.del(`/admin/feedback/${item.id}`), { confirm: 'Delete this feedback permanently?', success: 'Deleted', after: onChanged })}>
+      <button className="btn btn-danger" disabled={busy} onClick={() => run(() => del(`/admin/feedback/${item.id}`), { confirm: 'Delete this feedback permanently?', success: 'Deleted', after: onChanged })}>
         Delete
       </button>
     </Drawer>

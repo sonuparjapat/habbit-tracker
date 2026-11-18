@@ -20,7 +20,7 @@ export default function TemplatesPage() {
   const [editing, setEditing] = useState(null);
 
   const load = useCallback(() => {
-    get('/admin/templates').then((d) => setList(d.templates)).catch((e) => setError(e.message));
+    get('/admin/templates').then((res) => setList(res.data.templates)).catch((e) => setError(e.message));
   }, []);
   useEffect(load, [load]);
 

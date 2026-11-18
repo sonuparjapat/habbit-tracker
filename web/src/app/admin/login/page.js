@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
-import { session } from '@/lib/api';
+import { post } from '@/lib/api';
 
 function LoginForm() {
   const router = useRouter();
@@ -21,7 +21,9 @@ function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      await session.login(email, password, 'admin');
+      const res = await post('/auth/login', { email, password });
+      if (!res.data.user.isAdmin) throw new Error('This account does not have admin access');
+      localStorage.setItem('token', res.data.token);
       router.replace(target);
       router.refresh();
     } catch (err) {

@@ -6,7 +6,7 @@
 |---|---|---|---|
 | **Database** | PostgreSQL 13+ | AWS RDS (or Neon / Supabase) | — |
 | **API** (`backend/`) | Node.js + Express | AWS App Runner / Elastic Beanstalk / EC2 / Lightsail (or Render / Railway) | `DATABASE_URL`, `JWT_SECRET`, `BREVO_API_KEY`, `MAIL_FROM` |
-| **Website + admin** (`web/`) | Next.js 16 | AWS Amplify (or Vercel) | `API_URL` |
+| **Website + admin** (`web/`) | Next.js 16 | AWS Amplify (or Vercel) | `NEXT_PUBLIC_API_URL` |
 | **Android app** (`mobile/`) | Expo SDK 58 | Built by EAS, published on Google Play | `EXPO_PUBLIC_API_URL` |
 | **Email** | Verification / reset codes | **Brevo** (not AWS) | `BREVO_API_KEY` |
 
@@ -43,7 +43,7 @@ docker run -p 4000:4000 --env-file backend/.env anchor-api
 # Option B — plain Node (EC2 / Lightsail)
 cd backend && npm ci --omit=dev && NODE_ENV=production node src/index.js   # keep it running with pm2 or systemd
 ```
-Required env: `NODE_ENV=production`, `DATABASE_URL`, `JWT_SECRET`, `BACKEND_URL`, `BREVO_API_KEY`, `MAIL_FROM`.
+Required env: `NODE_ENV=production`, `DATABASE_URL`, `JWT_SECRET`, `BACKEND_URL`, `BREVO_API_KEY`, `MAIL_FROM`, `CORS_ORIGIN` (your website address).
 
 **Create the first super admin once:**
 ```bash
@@ -52,8 +52,8 @@ npm run create-admin -- you@yourdomain.com "a-long-strong-password"
 Then check email works: `npm run email:test -- you@gmail.com`, or use **Admin → System → Send test email**.
 
 ## 3. Website + admin panel
-- **Amplify / Vercel:** connect the repo, set the root to `web`, and add env vars `API_URL=https://api.yourdomain.com` and `NEXT_PUBLIC_SITE_URL=https://yourdomain.com`.
-- **Docker:** `docker build -t anchor-web ./web`, then `docker run -p 3000:3000 -e API_URL=https://api.yourdomain.com anchor-web`.
+- **Amplify / Vercel:** connect the repo, set the root to `web`, and add env vars `NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api` and `NEXT_PUBLIC_SITE_URL=https://yourdomain.com`. Then add the website address to the backend’s `CORS_ORIGIN`.
+- **Docker:** `docker build -t anchor-web --build-arg NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api ./web`, then `docker run -p 3000:3000 anchor-web`.
 
 Then open `https://yourdomain.com/admin`, sign in, and go to **App settings**. Fill in:
 - **Support email**

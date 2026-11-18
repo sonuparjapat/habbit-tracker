@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Badge, DataTable, ErrorBox, Field, Modal, PageHeader, Toggle, useToast } from '@/components/admin/kit';
-import { api, fmtDateTime } from '@/lib/api';
+import { del, patch, post } from '@/lib/api';
+import { fmtDateTime } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
 
 const LEVELS = [
@@ -65,7 +66,7 @@ export default function AnnouncementsPage() {
                 <Toggle
                   checked={a.active}
                   label={a.active ? 'Visible' : 'Hidden'}
-                  onChange={(active) => run(() => api.patch(`/admin/announcements/${a.id}`, { active }), { success: active ? 'Announcement visible' : 'Announcement hidden', after: reload })}
+                  onChange={(active) => run(() => patch(`/admin/announcements/${a.id}`, { active }), { success: active ? 'Announcement visible' : 'Announcement hidden', after: reload })}
                 />
               </span>
             ),
@@ -95,11 +96,11 @@ function Editor({ initial, onClose, onSaved }) {
     active: a.active,
   };
   const save = () =>
-    run(() => (isNew ? api.post('/admin/announcements', body) : api.patch(`/admin/announcements/${a.id}`, body)), {
+    run(() => (isNew ? post('/admin/announcements', body) : patch(`/admin/announcements/${a.id}`, body)), {
       success: isNew ? 'Announcement created' : 'Saved',
       after: onSaved,
     });
-  const remove = () => run(() => api.del(`/admin/announcements/${a.id}`), { confirm: `Delete “${a.title}”?`, success: 'Deleted', after: onSaved });
+  const remove = () => run(() => del(`/admin/announcements/${a.id}`), { confirm: `Delete “${a.title}”?`, success: 'Deleted', after: onSaved });
 
   return (
     <Modal

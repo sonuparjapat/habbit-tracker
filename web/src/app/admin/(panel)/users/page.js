@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useAdmin } from '@/components/AdminShell';
-import { del, fmtDate, fmtDateTime, get, patch, post, timeAgo } from '@/lib/api';
+import { del, get, patch, post } from '@/lib/api';
+import { fmtDate, fmtDateTime, timeAgo } from '@/lib/format';
 import { can, PERMISSIONS, ROLE_BADGE, ROLES } from '@/lib/roles';
 
 function RoleBadge({ role }) {
@@ -37,9 +38,9 @@ export default function UsersPage() {
     if (status) params.set('status', status);
     if (role) params.set('role', role);
     get(`/admin/users?${params}`)
-      .then((d) => {
+      .then((res) => {
         setError(null);
-        setData(d);
+        setData(res.data);
       })
       .catch((e) => setError(e.message));
   }, [page, query, status, role]);
@@ -141,7 +142,7 @@ function UserDrawer({ id, me, onClose, onChanged }) {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
-    get(`/admin/users/${id}`).then(setData).catch((e) => setError(e.message));
+    get(`/admin/users/${id}`).then((res) => setData(res.data)).catch((e) => setError(e.message));
   }, [id]);
   useEffect(load, [load]);
 
