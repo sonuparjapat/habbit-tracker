@@ -17,7 +17,7 @@ export default function Insights() {
     return (
       <Screen>
         <Txt variant="title">Insights</Txt>
-        <Txt variant="caption" style={{ marginBottom: 16 }}>Here is a sample. Yours is built from your own trades and habits.</Txt>
+        <Txt variant="caption" style={{ marginBottom: 16 }}>Here is a sample. Yours is built from your own habits and progress.</Txt>
         <SampleReport />
         <View style={{ marginTop: 20 }}>
           <GuestPrompt icon="chart-box-outline" title="See your own numbers" message="Sign up and log a few days. The patterns behind your wins and losses show up fast." />
@@ -26,8 +26,8 @@ export default function Insights() {
     );
   if (isLoading) return <Loading />;
 
-  // Trading plans first: that's where the money is
-  const trackers = [...(data ?? [])].sort((a, b) => (a.type === b.type ? 0 : a.type === 'trading' ? -1 : 1));
+  // Same order as the Trackers tab
+  const trackers = data ?? [];
   const tracker = trackers.find((t) => t.id === selected) ?? trackers[0];
 
   return (

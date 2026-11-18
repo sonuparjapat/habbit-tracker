@@ -1,29 +1,23 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, type Href } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { HabitCard, SpendingCard, TradingCard } from '@/components/cards';
+import { CelebrationModal, LevelBar, type Celebration } from '@/components/game';
+import { Banners } from '@/components/gates';
 import { GuestHome } from '@/components/guest';
 import { AlertCard, Button, Card, EmptyState, ErrorView, Icon, IconButton, Loading, Ring, Row, scoreColor, Screen, SectionTitle, Txt } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { greeting, longDate } from '@/lib/format';
-import { useDashboard } from '@/lib/queries';
+import { useAppConfig } from '@/lib/config';
+import { usePrefs } from '@/lib/prefs';
+import { useDashboard, useMarkAchievementsSeen } from '@/lib/queries';
 import type { DashboardCard, Insight } from '@/lib/types';
 import { colors } from '@/theme';
 
-const QUOTES = [
-  'Discipline is choosing between what you want now and what you want most.',
-  'You do not rise to the level of your goals. You fall to the level of your systems.',
-  'Small promises, kept daily, build unshakable self-trust.',
-  'The goal is not to do more. The goal is to do what you said you would.',
-  'Hitting your target is the signal to stop, not to start.',
-  'Motivation gets you started. Habit keeps you going.',
-  'Every time you keep a rule, you vote for the person you want to become.',
-];
-
 const SECTIONS: { type: DashboardCard['tracker']['type']; title: string }[] = [
-  { type: 'trading', title: 'Trading' },
-  { type: 'spending', title: 'Money' },
   { type: 'habit', title: 'Habits' },
+  { type: 'spending', title: 'Money' },
+  { type: 'trading', title: 'Trading' },
 ];
 
 function Banner({ icon, color, title, message, action, onPress }: { icon: string; color: string; title: string; message: string; action: string; onPress: () => void }) {
@@ -49,11 +43,37 @@ export default function Today() {
   const signedIn = useAuth((s) => !!s.token);
   const acceptTerms = useAuth((s) => s.acceptTerms);
   const [showAllAlerts, setShowAllAlerts] = useState(false);
+  const { settings } = useAppConfig();
+  const celebratedLevel = usePrefs((s) => s.celebratedLevel);
+  const updatePrefs = usePrefs((s) => s.update);
+  const markSeen = useMarkAchievementsSeen();
+  const [closedCelebration, setClosedCelebration] = useState<string | null>(null);
+
+  // What to celebrate (derived, so it can't double-fire): new badges first, then a level-up
+  const game = data?.game ?? null;
+  const pending: Celebration | null = game?.newlyUnlocked.length
+    ? { kind: 'badges', badges: game.newlyUnlocked }
+    : game && celebratedLevel > 0 && game.level > celebratedLevel
+      ? { kind: 'level', level: game.level, levelName: game.levelName }
+      : null;
+  const pendingKey = pending ? (pending.kind === 'badges' ? `b:${pending.badges.map((b) => b.key).join()}` : `l:${pending.level}`) : null;
+  // First visit: remember the current level without celebrating it
+  const currentLevel = game?.level ?? 0;
+  useEffect(() => {
+    if (currentLevel > 0 && celebratedLevel === 0) void updatePrefs({ celebratedLevel: currentLevel });
+  }, [currentLevel, celebratedLevel, updatePrefs]);
+
+  const closeCelebration = () => {
+    setClosedCelebration(pendingKey);
+    if (pending?.kind === 'badges') markSeen.mutate();
+    if (game && game.level > celebratedLevel) void updatePrefs({ celebratedLevel: game.level });
+  };
 
   if (!signedIn) return <GuestHome />;
   if (isLoading) return <Loading />;
 
-  const quote = QUOTES[new Date().getDate() % QUOTES.length];
+  const quotes = settings.daily_quotes.length ? settings.daily_quotes : [''];
+  const quote = quotes[new Date().getDate() % quotes.length];
   const alerts: Insight[] = (data?.cards ?? [])
     .flatMap((c) => ('alerts' in c.today ? c.today.alerts : []))
     .sort((a, b) => ['danger', 'warning', 'info', 'success'].indexOf(a.level) - ['danger', 'warning', 'info', 'success'].indexOf(b.level));
@@ -68,8 +88,10 @@ export default function Today() {
           <Txt variant="caption">{data ? longDate(data.date) : ''}</Txt>
           <Txt variant="title">{greeting()}{firstName ? `, ${firstName}` : ''}</Txt>
         </View>
-        <IconButton icon="plus" color={colors.text} size={44} onPress={() => router.push('/tracker/new')} />
+        <IconButton icon="plus" label="Add tracker" color={colors.text} size={44} onPress={() => router.push('/tracker/new')} />
       </Row>
+
+      <Banners />
 
       {user?.termsOutdated ? (
         <Banner icon="file-document-edit-outline" color={colors.blue} title="We updated our Terms & Privacy Policy" message="Please review and accept to keep using Anchor." action="Accept updated terms" onPress={() => void acceptTerms()} />
@@ -84,7 +106,7 @@ export default function Today() {
         <EmptyState
           icon="anchor"
           title="Start with one promise"
-          message="Pick something you want to work on — trading, money, health, focus, or quitting a habit. Start small."
+          message="Pick one thing you want to change — a workout, reading, sleep, quitting a habit, or spending less. Start small."
           action="Create your first tracker"
           onAction={() => router.push('/tracker/new')}
         />
@@ -92,6 +114,11 @@ export default function Today() {
 
       {data && data.cards.length > 0 ? (
         <>
+          {game ? (
+            <View style={{ marginBottom: 12 }}>
+              <LevelBar game={game} onPress={() => router.push('/achievements' as Href)} />
+            </View>
+          ) : null}
           <Card>
             <Row gap={20}>
               <Ring value={score / 100} size={92} stroke={9} color={scoreColor(score)}>
@@ -156,6 +183,7 @@ export default function Today() {
           </View>
         </>
       ) : null}
+      <CelebrationModal celebration={pending && pendingKey !== closedCelebration ? pending : null} onClose={closeCelebration} />
     </Screen>
   );
 }

@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { query } from '../db/pool.js';
 import { requirePermission, USER_FIELDS } from '../middleware/auth.js';
 import { HttpError, isUuid, parse } from '../middleware/errors.js';
+import { audit } from '../services/audit.js';
 import { CATEGORY_KEYS } from '../services/catalog.js';
 import { can, PERMISSIONS, ROLE_NAMES, ROLES } from '../services/roles.js';
 import { parseConfig } from '../services/trackerConfig.js';
@@ -24,12 +25,6 @@ function assertCanActOn(req, target, { allowSelf = false } = {}) {
     throw new HttpError(403, 'Only a super admin can change admin accounts', 'FORBIDDEN');
 }
 
-async function audit(req, action, targetType, targetId, meta = {}) {
-  await query(
-    `INSERT INTO audit_logs (actor_id, actor_email, action, target_type, target_id, meta) VALUES ($1, $2, $3, $4, $5, $6)`,
-    [req.user.id, req.user.email, action, targetType, targetId, JSON.stringify(meta)],
-  );
-}
 
 /* -------------------------------- Overview -------------------------------- */
 

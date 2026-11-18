@@ -1,10 +1,13 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
+import { useAppConfig } from '@/lib/config';
 import { MARKETS } from '@/lib/catalog';
 import { money, pnlColor } from '@/lib/format';
 import { useDeleteEntry, useSaveEntry } from '@/lib/queries';
 import type { HabitToday, HabitTracker, SpendingToday, SpendingTracker, TradingToday, TradingTracker } from '@/lib/types';
 import { colors } from '@/theme';
+import { XpPop } from './game';
 import { Button, Card, haptic, Icon, ProgressBar, Row, Stat, TrackerIcon, Txt } from './ui';
 
 const go = (id: string) => () => router.push(`/tracker/${id}`);
@@ -128,6 +131,10 @@ export function SpendingCard({ tracker, today, currency, link = true }: { tracke
 export function HabitCard({ tracker, today, date, link = true }: { tracker: HabitTracker; today: HabitToday; date: string; link?: boolean }) {
   const save = useSaveEntry(tracker.id);
   const undo = useDeleteEntry(tracker.id);
+  const { settings } = useAppConfig();
+  const xp = settings.feature_gamification ? settings.xp_habit_day : 0;
+  const [pop, setPop] = useState({ n: 0, amount: 0 });
+  const showXp = (amount: number) => xp && setPop((p) => ({ n: p.n + 1, amount }));
   const c = tracker.config;
   const done = today.completedToday;
   const measured = c.kind === 'limit' || (c.kind === 'build' && c.goalType !== 'boolean');
@@ -136,17 +143,22 @@ export function HabitCard({ tracker, today, date, link = true }: { tracker: Habi
   const toggle = () => {
     if (done) {
       haptic.tap();
+      showXp(-xp);
       undo.mutate(date);
     } else {
       haptic.success();
+      showXp(xp);
       save.mutate({ date, completed: true });
     }
   };
   const bump = (delta: number) => {
     const next = Math.max(0, today.valueToday + delta);
+    const wasDone = c.kind === 'limit' ? today.loggedToday && today.valueToday <= c.target : today.valueToday >= c.target;
+    const nowDone = c.kind === 'limit' ? next <= c.target : next >= c.target;
     if (c.kind === 'limit' && next > c.target && today.valueToday <= c.target) haptic.warning();
-    else if (c.kind === 'build' && next >= c.target && today.valueToday < c.target) haptic.success();
+    else if (c.kind === 'build' && nowDone && !wasDone) haptic.success();
     else haptic.tap();
+    if (nowDone !== wasDone) showXp(nowDone ? xp : -xp);
     save.mutate({ date, value: next });
   };
 
@@ -181,10 +193,10 @@ export function HabitCard({ tracker, today, date, link = true }: { tracker: Habi
         </View>
         {measured ? (
           <Row gap={8}>
-            <Pressable onPress={() => bump(-step)} hitSlop={8} style={roundBtn}>
+            <Pressable onPress={() => bump(-step)} hitSlop={8} style={roundBtn} accessibilityRole="button" accessibilityLabel={`Decrease ${tracker.name}`}>
               <Icon name="minus" size={18} color={colors.textMuted} />
             </Pressable>
-            <Pressable onPress={() => bump(step)} hitSlop={8} style={[roundBtn, c.kind === 'build' && done && { backgroundColor: tracker.color, borderColor: tracker.color }]}>
+            <Pressable onPress={() => bump(step)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Increase ${tracker.name}`} style={[roundBtn, c.kind === 'build' && done && { backgroundColor: tracker.color, borderColor: tracker.color }]}>
               <Icon name={c.kind === 'build' && done ? 'check' : 'plus'} size={20} color={colors.text} />
             </Pressable>
           </Row>
@@ -192,6 +204,9 @@ export function HabitCard({ tracker, today, date, link = true }: { tracker: Habi
           <Pressable
             onPress={toggle}
             hitSlop={8}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: done }}
+            accessibilityLabel={c.kind === 'quit' ? `Stayed clean today: ${tracker.name}` : `Done today: ${tracker.name}`}
             style={[roundBtn, { width: 50, height: 50, borderRadius: 17 }, done && { backgroundColor: tracker.color, borderColor: tracker.color }]}>
             <Icon name={done ? 'check-bold' : c.kind === 'quit' ? 'shield-outline' : 'check'} size={24} color={done ? colors.text : colors.textDim} />
           </Pressable>
@@ -202,6 +217,22 @@ export function HabitCard({ tracker, today, date, link = true }: { tracker: Habi
           <ProgressBar value={today.valueToday / c.target} color={barColor} height={6} />
         </View>
       ) : null}
+      {c.kind === 'limit' && !today.loggedToday && today.scheduledToday ? (
+        // For "stay under" habits, zero is the best day — make it one tap to record
+        <Pressable
+          onPress={() => {
+            haptic.success();
+            showXp(xp);
+            save.mutate({ date, value: 0 });
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`Log none today for ${tracker.name}`}
+          style={{ marginTop: 14, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 99, backgroundColor: colors.greenSoft }}>
+          <Icon name="check-circle-outline" size={16} color={colors.green} />
+          <Txt variant="caption" color={colors.green} style={{ fontWeight: '700' }}>None today</Txt>
+        </Pressable>
+      ) : null}
+      <XpPop trigger={pop.n} amount={pop.amount} />
     </Card>
   );
 }

@@ -131,6 +131,8 @@ export interface TradingToday {
 
 export interface HabitToday {
   date: string;
+  lostStreak: number;
+  alerts: Insight[];
   scheduledToday: boolean;
   loggedToday: boolean;
   completedToday: boolean;
@@ -166,11 +168,35 @@ export type DashboardCard =
   | { tracker: TradingTracker; today: TradingToday }
   | { tracker: SpendingTracker; today: SpendingToday };
 
+export interface Achievement {
+  key: string;
+  title: string;
+  description: string;
+  icon: string;
+  unlocked: boolean;
+  unlockedAt: string | null;
+}
+
+export interface Game {
+  xp: number;
+  level: number;
+  levelName: string;
+  levelStartXp: number;
+  nextLevelXp: number;
+  progress: number;
+  achievements: Achievement[];
+  unlockedCount: number;
+  newlyUnlocked: Achievement[];
+  points: { habitDay: number; cleanTrade: number; journal: number; expense: number; ruleBreak: number };
+}
+
 export interface Dashboard {
   date: string;
   user: { name: string; currency: string; emailVerified: boolean };
   summary: { habitsDue: number; habitsDone: number; ruleBreaksToday: number; dayScore: number };
   cards: DashboardCard[];
+  /** null when the admin has switched gamification off */
+  game: Game | null;
 }
 
 export interface RuleBreak {

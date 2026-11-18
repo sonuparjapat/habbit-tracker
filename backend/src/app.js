@@ -5,7 +5,9 @@ import morgan from 'morgan';
 import { config } from './config.js';
 import { requireAdmin, requireAuth } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errors.js';
+import { blockDuringMaintenance } from './middleware/maintenance.js';
 import { adminRouter } from './routes/admin.js';
+import { adminContentRouter } from './routes/adminContent.js';
 import { authRouter } from './routes/auth.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { expensesRouter, tradesRouter } from './routes/entries.js';
@@ -33,11 +35,13 @@ export function createApp() {
 
   app.use('/api', metaRouter);
   app.use('/api/auth', authRouter);
-  app.use('/api/dashboard', requireAuth, dashboardRouter);
-  app.use('/api/trackers', requireAuth, trackersRouter);
-  app.use('/api/trades', requireAuth, tradesRouter);
-  app.use('/api/expenses', requireAuth, expensesRouter);
-  app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
+  // Member features (paused during maintenance mode; staff are let through)
+  const member = [requireAuth, blockDuringMaintenance];
+  app.use('/api/dashboard', ...member, dashboardRouter);
+  app.use('/api/trackers', ...member, trackersRouter);
+  app.use('/api/trades', ...member, tradesRouter);
+  app.use('/api/expenses', ...member, expensesRouter);
+  app.use('/api/admin', requireAuth, requireAdmin, adminRouter, adminContentRouter);
 
   app.use(notFound);
   app.use(errorHandler);

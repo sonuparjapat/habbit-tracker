@@ -1,16 +1,24 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, ScrollView, View } from 'react-native';
 import { CATEGORIES } from '@/lib/catalog';
+import { useAppConfig } from '@/lib/config';
 import { usePrefs } from '@/lib/prefs';
 import { useTemplates } from '@/lib/queries';
 import { goProtected, goSignIn } from '@/lib/requireAuth';
+import type { Category, CategoryKey, Template } from '@/lib/types';
 import { colors, gradients, radius } from '@/theme';
-import { EquityChart } from './charts';
 import { AlertCard, Button, Card, Icon, ProgressBar, Ring, Row, Screen, SectionTitle, TrackerIcon, Txt } from './ui';
 
-const SAMPLE_CURVE = [
-  [1100, 1100], [2000, 2000], [3200, 3200], [4200, 4200], [2100, 5400], [3300, 6600], [2500, 7600], [3600, 8700],
-].map(([actual, disciplined], i) => ({ date: String(i), actual: actual!, disciplined: disciplined! }));
+/** What each life area looks like in practice — shown on the guest home. */
+const AREA_EXAMPLES: Record<CategoryKey, string> = {
+  fitness: 'Workout · Steps · Water · Sleep',
+  mind: 'Meditate · Journal · Gratitude',
+  productivity: 'Read · Study · Deep work · Wake early',
+  quit: 'Smoking · Alcohol · Social media · Junk food',
+  money: 'Daily budget · No-spend days · Saving',
+  trading: 'Trade limits · Profit target · Loss limit',
+  other: 'Anything you want to do — or stop doing',
+};
 
 function Logo() {
   return (
@@ -21,6 +29,15 @@ function Logo() {
       <Txt variant="h2">Anchor</Txt>
     </Row>
   );
+}
+
+/** Life areas switched on by the admin, with the guest's chosen interests first. */
+function useAreas(): Category[] {
+  const interests = usePrefs((s) => s.interests);
+  const { settings } = useAppConfig();
+  // Money stays visible even without budgets (it has habits like "Save daily"); trading can be switched off
+  const areas = CATEGORIES.filter((c) => c.key !== 'trading' || settings.feature_trading);
+  return [...areas.filter((c) => interests.includes(c.key)), ...areas.filter((c) => !interests.includes(c.key))];
 }
 
 /** Tab-level prompt shown to guests instead of account data. */
@@ -40,16 +57,37 @@ export function GuestPrompt({ icon, title, message }: { icon: string; title: str
   );
 }
 
-/** Horizontal strip of templates, prioritising the user's chosen interests. */
+/** Take one template from each area in turn, so the strip is always varied. */
+function interleave(list: Template[], order: CategoryKey[]) {
+  const byArea = new Map<string, Template[]>();
+  for (const t of list) byArea.set(t.category, [...(byArea.get(t.category) ?? []), t]);
+  const out: Template[] = [];
+  for (let round = 0; out.length < list.length; round++) {
+    let added = false;
+    for (const key of order) {
+      const t = byArea.get(key)?.[round];
+      if (t) {
+        out.push(t);
+        added = true;
+      }
+    }
+    if (!added) break;
+  }
+  return out;
+}
+
+/** Horizontal strip of ready-made trackers, varied across life areas (chosen interests first). */
 export function TemplateStrip() {
-  const { data } = useTemplates();
-  const interests = usePrefs((s) => s.interests);
+  const { data: all } = useTemplates();
+  const areas = useAreas();
+  const { settings } = useAppConfig();
+  const data = all?.filter((t) => (t.type === 'trading' ? settings.feature_trading : t.type === 'spending' ? settings.feature_spending : true));
   if (!data?.length) return null;
-  const list = interests.length ? [...data.filter((t) => interests.includes(t.category)), ...data.filter((t) => !interests.includes(t.category))] : data;
+  const list = interleave(data, areas.map((a) => a.key));
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 20 }} style={{ marginHorizontal: -20, paddingLeft: 20 }}>
       {list.slice(0, 12).map((t) => (
-        <Pressable key={t.slug} onPress={() => goProtected(`/tracker/new?category=${t.category}`)}>
+        <Pressable key={t.slug} onPress={() => goProtected(`/tracker/new?category=${t.category}`)} accessibilityRole="button" accessibilityLabel={`Start with ${t.name}`}>
           <View style={{ width: 156, padding: 16, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 12 }}>
             <TrackerIcon icon={t.icon} color={t.color} size={42} />
             <View style={{ gap: 4 }}>
@@ -63,69 +101,131 @@ export function TemplateStrip() {
   );
 }
 
-/** Example report so guests see the value before signing up. */
-export function SampleReport() {
+/** Grid of life areas — the first thing a newcomer should understand: this is for *their* goal. */
+function AreaGrid() {
+  const areas = useAreas();
   return (
-    <View style={{ gap: 12 }}>
-      <Card>
-        <Row gap={16}>
-          <View style={{ flex: 1, gap: 4 }}>
-            <Txt variant="label">Sample month · trading</Txt>
-            <Txt variant="hero" color={colors.green} style={{ fontSize: 32 }}>+3,600</Txt>
-            <Txt variant="caption">12 trades · 8 days</Txt>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 }}>
+      {areas.map((c) => (
+        <Pressable
+          key={c.key}
+          onPress={() => goProtected(`/tracker/new?category=${c.key}`)}
+          accessibilityRole="button"
+          accessibilityLabel={`${c.label}: ${AREA_EXAMPLES[c.key]}`}
+          style={({ pressed }) => ({
+            width: '48.5%',
+            minHeight: 124,
+            padding: 16,
+            gap: 10,
+            borderRadius: radius.lg,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+            opacity: pressed ? 0.85 : 1,
+          })}>
+          <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: c.color + '22', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={c.icon} size={21} color={c.color} />
           </View>
-          <Ring value={0.72} size={84} stroke={9} color={colors.amber}>
-            <Txt variant="h3">72</Txt>
-            <Txt variant="caption" style={{ fontSize: 10 }}>discipline</Txt>
-          </Ring>
-        </Row>
-        <View style={{ marginTop: 20 }}>
-          <EquityChart currency="USD" points={SAMPLE_CURVE} height={130} />
-        </View>
-      </Card>
-      <AlertCard alert={{ level: 'danger', title: 'Breaking rules cost you 5,100', message: 'Within your rules you made 8,700. The trades that broke a rule took 5,100 back.' }} />
-      <AlertCard alert={{ level: 'warning', title: 'Food is 46% of your spending', message: 'This is your biggest lever. Cutting it a little matters more than cutting everything else.' }} />
-      <AlertCard alert={{ level: 'success', title: '14-day workout streak', message: 'Two weeks in a row. This is becoming who you are.' }} />
+          <Txt variant="h3" numberOfLines={1}>{c.label}</Txt>
+          <Txt variant="caption" style={{ fontSize: 12, lineHeight: 16 }} numberOfLines={2}>{AREA_EXAMPLES[c.key]}</Txt>
+        </Pressable>
+      ))}
     </View>
   );
 }
 
-function Preview() {
+function Check({ color }: { color: string }) {
   return (
-    <View style={{ gap: 12 }}>
-      <LinearGradient colors={gradients.green} style={{ borderRadius: radius.lg, padding: 22, gap: 6 }}>
-        <Row gap={10}>
-          <Icon name="shield-lock" size={26} />
-          <Txt variant="h3">Trading day closed</Txt>
+    <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name="check-bold" size={22} />
+    </View>
+  );
+}
+
+/** A realistic "Today" made of different kinds of habits. */
+function DayPreview() {
+  return (
+    <View style={{ gap: 10 }}>
+      <Card>
+        <Row gap={12}>
+          <TrackerIcon icon="dumbbell" color="#F59E0B" size={40} />
+          <View style={{ flex: 1, gap: 3 }}>
+            <Txt variant="h3">Workout</Txt>
+            <Row gap={4}>
+              <Icon name="fire" size={14} color={colors.amber} />
+              <Txt variant="caption" color={colors.amber}>14 day streak</Txt>
+            </Row>
+          </View>
+          <Check color="#F59E0B" />
         </Row>
-        <Txt style={{ opacity: 0.92 }}>Target reached. Close the terminal and walk away.</Txt>
-      </LinearGradient>
+      </Card>
+      <Card style={{ gap: 12 }}>
+        <Row gap={12}>
+          <TrackerIcon icon="book-open-variant" color="#14B8A6" size={40} />
+          <View style={{ flex: 1, gap: 3 }}>
+            <Txt variant="h3">Read</Txt>
+            <Txt variant="caption">15 / 20 pages</Txt>
+          </View>
+          <Txt variant="mono" color="#14B8A6">75%</Txt>
+        </Row>
+        <ProgressBar value={0.75} color="#14B8A6" height={6} />
+      </Card>
+      <Card>
+        <Row gap={12}>
+          <TrackerIcon icon="smoking-off" color="#F43F5E" size={40} />
+          <View style={{ flex: 1, gap: 3 }}>
+            <Txt variant="h3">No smoking</Txt>
+            <Row gap={4}>
+              <Icon name="shield-check" size={14} color={colors.green} />
+              <Txt variant="caption" color={colors.green}>23 clean days</Txt>
+            </Row>
+          </View>
+          <Check color="#F43F5E" />
+        </Row>
+      </Card>
       <Card style={{ gap: 12 }}>
         <Row style={{ justifyContent: 'space-between' }}>
-          <Row gap={10}>
-            <TrackerIcon icon="wallet-outline" color={colors.green} size={36} />
-            <Txt variant="h3">Daily budget</Txt>
+          <Row gap={12}>
+            <TrackerIcon icon="wallet-outline" color="#14B8A6" size={40} />
+            <View style={{ gap: 3 }}>
+              <Txt variant="h3">Daily budget</Txt>
+              <Txt variant="caption">180 left for today</Txt>
+            </View>
           </Row>
           <Txt variant="mono" color={colors.amber}>82%</Txt>
         </Row>
         <ProgressBar value={0.82} color={colors.amber} />
-        <Txt variant="caption">Almost at your limit — 180 left for today</Txt>
       </Card>
+    </View>
+  );
+}
+
+/** Example progress report so guests see the value before signing up. */
+export function SampleReport() {
+  const week = [1, 1, 1, 0, 1, 1, 1];
+  return (
+    <View style={{ gap: 12 }}>
       <Card>
-        <Row gap={10}>
-          <TrackerIcon icon="smoking-off" color={colors.red} size={36} />
-          <View style={{ flex: 1 }}>
-            <Txt variant="h3">No smoking</Txt>
-            <Row gap={4}>
-              <Icon name="fire" size={14} color={colors.amber} />
-              <Txt variant="caption" color={colors.amber}>23 clean days</Txt>
+        <Row gap={18}>
+          <Ring value={0.86} size={92} stroke={10} color={colors.primary}>
+            <Txt variant="h2">86%</Txt>
+          </Ring>
+          <View style={{ flex: 1, gap: 8 }}>
+            <Txt variant="label">Sample month · 4 habits</Txt>
+            <Txt variant="h3">26 of 30 days kept</Txt>
+            <Row gap={6}>
+              {week.map((d, i) => (
+                <View key={i} style={{ flex: 1, height: 26, borderRadius: 7, backgroundColor: d ? colors.primary : colors.surfaceHigh, alignItems: 'center', justifyContent: 'center' }}>
+                  <Txt variant="caption" style={{ fontSize: 10 }} color={d ? colors.text : colors.textDim}>{'MTWTFSS'[i]}</Txt>
+                </View>
+              ))}
             </Row>
-          </View>
-          <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: colors.red, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="check-bold" size={22} />
           </View>
         </Row>
       </Card>
+      <AlertCard alert={{ level: 'success', title: '21-day meditation streak', message: 'Three weeks in a row. This is becoming who you are.' }} />
+      <AlertCard alert={{ level: 'warning', title: 'Wednesdays are your weak spot', message: 'You miss workouts most on Wednesdays. Plan that day in advance — or set a smaller goal.' }} />
+      <AlertCard alert={{ level: 'info', title: 'Food is 46% of your spending', message: 'Your biggest lever. Cutting it a little matters more than cutting everything else.' }} />
     </View>
   );
 }
@@ -145,9 +245,9 @@ export function GuestHome() {
 
       {/* Hero */}
       <LinearGradient colors={['#271D5E', '#121628']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: 26, borderWidth: 1, borderColor: '#352B78' }}>
-        <Txt variant="title" style={{ fontSize: 30, lineHeight: 37 }}>Keep the promises you make to yourself.</Txt>
+        <Txt variant="title" style={{ fontSize: 30, lineHeight: 37 }}>Build habits that stick. Break the ones that don’t.</Txt>
         <Txt color="#B8BFD0" style={{ marginTop: 12 }}>
-          Set your own limits for trading, spending, health or any habit — and get stopped before you break them.
+          Workouts, reading, sleep, quitting smoking, spending less — pick what matters to you, set your own goal, and Anchor keeps you on track every day.
         </Txt>
         {chosen.length ? (
           <Row gap={8} style={{ flexWrap: 'wrap', marginTop: 18 }}>
@@ -159,25 +259,30 @@ export function GuestHome() {
             ))}
           </Row>
         ) : null}
-        <Button title="Get started — it’s free" icon="arrow-right" style={{ marginTop: 22 }} onPress={() => goSignIn('register')} />
+        <Button title="Start for free" icon="arrow-right" style={{ marginTop: 22 }} onPress={() => goSignIn('register')} />
+        <Txt variant="caption" center style={{ marginTop: 10, fontSize: 12 }}>Free · takes 10 seconds · your data stays private</Txt>
       </LinearGradient>
 
-      <SectionTitle>Start in seconds</SectionTitle>
+      <SectionTitle>What do you want to change?</SectionTitle>
+      <AreaGrid />
+
+      <SectionTitle>Your day, at a glance</SectionTitle>
+      <DayPreview />
+
+      <SectionTitle>Popular ways to start</SectionTitle>
       <TemplateStrip />
 
-      <SectionTitle>How it feels</SectionTitle>
-      <Preview />
-
-      <SectionTitle>How it works</SectionTitle>
-      <Card style={{ gap: 22 }}>
+      <SectionTitle>Why people stick with it</SectionTitle>
+      <Card style={{ gap: 20 }}>
         {[
-          ['Choose what matters', 'Trading, money, fitness, focus, or a habit to quit.'],
-          ['Set your own limits', 'One trade a day. A daily budget. Five cigarettes max. Your rules.'],
-          ['Get honest feedback', 'Streaks, rule breaks, and weekly & monthly reports that tell you the truth.'],
-        ].map(([title, text], i) => (
+          ['fire', colors.amber, 'Streaks you won’t want to break', 'Every day you show up adds to your streak — and you’ll be warned before it’s about to reset.'],
+          ['trophy-outline', '#EC4899', 'Levels, XP and badges', 'Earn XP for every promise kept. Unlock badges as you grow. Missing a day costs you.'],
+          ['shield-lock-outline', colors.green, 'Limits that hold you back', 'Set a daily limit — cigarettes, screen time, spending, trades — and get stopped before you cross it.'],
+          ['chart-box-outline', colors.blue, 'Honest weekly & monthly reports', 'See your best days, weak spots and what’s really working.'],
+        ].map(([icon, color, title, text]) => (
           <Row key={title} gap={14} style={{ alignItems: 'flex-start' }}>
-            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-              <Txt variant="h3">{i + 1}</Txt>
+            <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: color + '22', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={icon} size={20} color={color} />
             </View>
             <View style={{ flex: 1, gap: 3 }}>
               <Txt variant="h3">{title}</Txt>
@@ -187,7 +292,7 @@ export function GuestHome() {
         ))}
       </Card>
 
-      <SectionTitle>What your reports look like</SectionTitle>
+      <SectionTitle>What your progress looks like</SectionTitle>
       <SampleReport />
 
       <Card style={{ marginTop: 28, gap: 14 }}>
@@ -205,8 +310,8 @@ export function GuestHome() {
 
       <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: 28, marginTop: 28, gap: 12, alignItems: 'center' }}>
         <Icon name="anchor" size={34} />
-        <Txt variant="h2" center>One promise. Kept every day.</Txt>
-        <Txt center style={{ opacity: 0.9 }}>That’s how discipline is built.</Txt>
+        <Txt variant="h2" center>Small steps. Every day.</Txt>
+        <Txt center style={{ opacity: 0.9 }}>That’s how real change happens. Start with one habit today.</Txt>
         <Pressable onPress={() => goSignIn('register')} style={{ backgroundColor: colors.text, paddingHorizontal: 24, paddingVertical: 14, borderRadius: radius.md, marginTop: 6 }}>
           <Txt variant="h3" color={colors.bg}>Create free account</Txt>
         </Pressable>

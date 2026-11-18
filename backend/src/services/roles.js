@@ -19,6 +19,10 @@ export const PERMISSIONS = Object.freeze({
   ADMINS_MANAGE: 'admins.manage', // promote / demote admins, act on admin accounts
   TEMPLATES_MANAGE: 'templates.manage',
   AUDIT_VIEW: 'audit.view',
+  CONTENT_MANAGE: 'content.manage', // announcements
+  FEEDBACK_MANAGE: 'feedback.manage',
+  SETTINGS_MANAGE: 'settings.manage', // app-wide settings (support email, maintenance, versions, XP...)
+  SYSTEM_VIEW: 'system.view', // health, test email
 });
 
 const ALL = Object.values(PERMISSIONS);
@@ -30,6 +34,8 @@ export const ROLE_PERMISSIONS = Object.freeze({
     PERMISSIONS.USERS_VIEW,
     PERMISSIONS.USERS_MANAGE,
     PERMISSIONS.TEMPLATES_MANAGE,
+    PERMISSIONS.CONTENT_MANAGE,
+    PERMISSIONS.FEEDBACK_MANAGE,
   ],
   [ROLES.USER]: [],
 });

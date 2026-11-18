@@ -18,6 +18,26 @@ mobile/    Expo SDK 58 app (Android / iOS) — Expo Router, TanStack Query
 web/       Next.js 16 website (JavaScript) — public site + admin panel at /admin (+ user web app later)
 ```
 
+## Admin panel — run everything without code changes
+
+| Page | What you can do |
+|---|---|
+| Dashboard | Members, active today/week/month, 30-day retention, sign-ups & activity charts, top templates, badges earned |
+| Users | Search, filter by role, suspend, make admin, verify email, sign out everywhere, delete |
+| Feedback | Inbox of bug reports / ideas from the app — reply by email, notes, resolve |
+| Templates | The ready-made trackers users pick from |
+| Announcements | Banners in the app, with optional button and schedule |
+| App settings | Support email, links, maintenance mode, sign-ups on/off, min/latest app version, feature switches, daily quotes, XP points, limits |
+| System | API/database health, migrations, email provider + send test email |
+| Audit log | Every admin action |
+
+Add a setting: one entry in `backend/src/services/settings.js`. It appears in **App settings** and in the apps automatically.
+
+## Game: XP, levels, badges
+Members earn XP for check-ins, clean trades, journals and within-budget expenses, and **lose XP for rule breaks**. XP is calculated from real activity, so it can't drift. 16 badges (streaks, clean trading, budgets, honesty…) unlock with an animated celebration. The app also warns when a streak is at risk and says plainly when one was lost. Points per action are admin settings.
+
+**Deploying & building the app → see [DEPLOYMENT.md](DEPLOYMENT.md)** (AWS options, EAS build, Play Store steps).
+
 ## Privacy & permissions (by design)
 
 - **First run:** welcome → choose interests → permissions screen. Notifications are **never requested** until the user taps “Allow”.
@@ -148,8 +168,10 @@ In development the app reaches the backend on the computer running Metro (same W
 | | | `NEXT_PUBLIC_APP_NAME` | | `Anchor` |
 | | | `NEXT_PUBLIC_SITE_URL` | | `https://yourdomain.com` |
 | | | `NEXT_PUBLIC_PLAY_STORE_URL` | | Play Store link once published |
+| | | `NEXT_PUBLIC_SUPPORT_EMAIL` | ✅ | shown on /privacy, /terms, /delete-account |
 | mobile | `mobile/.env` | `EXPO_PUBLIC_API_URL` | for builds | `https://api.yourdomain.com/api` (empty in dev = auto-detect) |
 | | | `EXPO_PUBLIC_ADS_ENABLED` | | `false` until AdMob is set up |
+| | | `EXPO_PUBLIC_SUPPORT_EMAIL` | ✅ | Profile → Help & support, in-app legal screens |
 
 Each app has a commented `.env.example`. `NEXT_PUBLIC_*` and `EXPO_PUBLIC_*` values are baked into the build, so never put secrets in them.
 
@@ -162,7 +184,7 @@ Each app has a commented `.env.example`. `NEXT_PUBLIC_*` and `EXPO_PUBLIC_*` val
 5. **App:** `npx eas-cli@latest build -p android --profile production`, then `eas submit -p android`
 
 Before you submit to the Play Store:
-- Publish the Privacy Policy at a public URL.
+- Privacy Policy URL: `https://yourdomain.com/privacy`. Account-deletion URL: `https://yourdomain.com/delete-account` (both are on the website).
 - Fill in the Data Safety form. Data collected: email, name, app activity. Not sold, deletable in-app.
 - Set the content rating.
 

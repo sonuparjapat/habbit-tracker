@@ -1,6 +1,7 @@
 import { getLocales } from 'expo-localization';
 import { create } from 'zustand';
 import { api, get, patch, post, setAuthToken, setUnauthorizedHandler } from './api';
+import { usePrefs } from './prefs';
 import { queryClient } from './queryClient';
 import { storage } from './storage';
 import type { CategoryKey, User } from './types';
@@ -58,6 +59,8 @@ export const useAuth = create<AuthState>((set, getState) => {
     setAuthToken(token);
     await storage.set(TOKEN_KEY, token);
     set({ token, user });
+    // Signed-in users never need the first-run onboarding again on this device
+    if (!usePrefs.getState().onboarded) void usePrefs.getState().update({ onboarded: true });
   };
 
   setUnauthorizedHandler(() => {

@@ -1,0 +1,39 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://habbit-tracker-sefr.onrender.com/api",
+        "EXPO_PUBLIC_SUPPORT_EMAIL": "sonuparjapat.connect@gmail.com",
+        "EXPO_PUBLIC_ADS_ENABLED": "false"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://habbit-tracker-sefr.onrender.com/api",
+        "EXPO_PUBLIC_SUPPORT_EMAIL": "sonuparjapat.connect@gmail.com",
+        "EXPO_PUBLIC_ADS_ENABLED": "false"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./play-service-account.json",
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    }
+  }
+}

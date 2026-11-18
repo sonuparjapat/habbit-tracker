@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { config } from '../config.js';
-import { DEFAULT_TEMPLATES } from '../services/catalog.js';
+import { DEFAULT_TEMPLATES, TEMPLATE_ORDER } from '../services/catalog.js';
 import { ROLE_LABELS, ROLES } from '../services/roles.js';
 import { query } from './pool.js';
 
@@ -11,7 +11,7 @@ export async function seed({ log = console.log } = {}) {
     const { rowCount } = await query(
       `INSERT INTO templates (slug, category, type, name, subtitle, icon, color, config, sort_order)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (slug) DO NOTHING`,
-      [t.slug, t.category, t.type, t.name, t.subtitle, t.icon, t.color, JSON.stringify(t.config), i],
+      [t.slug, t.category, t.type, t.name, t.subtitle, t.icon, t.color, JSON.stringify(t.config), TEMPLATE_ORDER.includes(t.slug) ? TEMPLATE_ORDER.indexOf(t.slug) : 100 + i],
     );
     inserted += rowCount;
   }

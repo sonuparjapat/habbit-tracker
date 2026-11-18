@@ -7,8 +7,8 @@ const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin']
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: `${APP_NAME} — keep the promises you make to yourself`, template: `%s · ${APP_NAME}` },
-  description: 'Set your own limits for trading, spending, health and habits — and get stopped before you break them.',
+  title: { default: `${APP_NAME} — build habits that stick`, template: `%s · ${APP_NAME}` },
+  description: 'Build habits that stick and break the ones that don’t — workouts, reading, sleep, quitting smoking, budgets and more. Streaks, XP and honest progress reports.',
 };
 
 export const viewport = { themeColor: '#0a0c11' };

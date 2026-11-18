@@ -2,8 +2,9 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { TrackerForm, type TrackerDraft } from '@/components/TrackerForm';
-import { Card, Icon, Row, Screen, SectionTitle, TrackerIcon, Txt } from '@/components/ui';
+import { Card, ErrorView, Icon, Row, Screen, SectionTitle, TrackerIcon, Txt } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import { useAppConfig } from '@/lib/config';
 import { CATEGORIES, categoryOf } from '@/lib/catalog';
 import { defaultConfigFor } from '@/lib/defaults';
 import { useCreateTracker, useTemplates } from '@/lib/queries';
@@ -43,6 +44,9 @@ export default function NewTracker() {
   const [draft, setDraft] = useState<TrackerDraft | null>(null);
   const templates = useTemplates();
   const create = useCreateTracker();
+  const { settings } = useAppConfig();
+  // Admin feature switches (Admin → App settings → Features)
+  const typeAllowed = (type: TrackerType) => (type === 'trading' ? settings.feature_trading : type === 'spending' ? settings.feature_spending : true);
 
   /* Step 3: configure */
   if (draft) {
@@ -63,7 +67,7 @@ export default function NewTracker() {
   /* Step 2: template or custom within a category */
   if (category) {
     const c = categoryOf(category);
-    const list = (templates.data ?? []).filter((t) => t.category === category);
+    const list = (templates.data ?? []).filter((t) => t.category === category && typeAllowed(t.type));
     return (
       <Screen edges={['bottom']}>
         <Stack.Screen options={{ title: c.label }} />
@@ -76,6 +80,11 @@ export default function NewTracker() {
         <Txt variant="caption">Start from a template — you can change every limit on the next screen.</Txt>
 
         {templates.isLoading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} /> : null}
+        {templates.isError ? (
+          <View style={{ marginTop: 20 }}>
+            <ErrorView error={templates.error} onRetry={() => templates.refetch()} />
+          </View>
+        ) : null}
         {list.length ? <SectionTitle>Templates</SectionTitle> : null}
         <View style={{ gap: 10 }}>
           {list.map((t) => (
@@ -94,7 +103,7 @@ export default function NewTracker() {
 
         <SectionTitle>Or build your own</SectionTitle>
         <View style={{ gap: 10 }}>
-          {CUSTOM_OPTIONS[category].map((o) => (
+          {CUSTOM_OPTIONS[category].filter((o) => typeAllowed(o.type)).map((o) => (
             <Card
               key={o.label}
               onPress={() =>
@@ -120,7 +129,7 @@ export default function NewTracker() {
   }
 
   /* Step 1: category */
-  const ordered = [...CATEGORIES].sort((a, b) => Number(interests.includes(b.key)) - Number(interests.includes(a.key)));
+  const ordered = CATEGORIES.filter((c) => c.key !== 'trading' || settings.feature_trading).sort((a, b) => Number(interests.includes(b.key)) - Number(interests.includes(a.key)));
   return (
     <Screen edges={['bottom']}>
       <Txt variant="h2" style={{ marginBottom: 6 }}>What do you want to track?</Txt>

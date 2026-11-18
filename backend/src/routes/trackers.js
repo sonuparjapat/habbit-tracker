@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { query, withTransaction } from '../db/pool.js';
 import { HttpError, parse } from '../middleware/errors.js';
 import { CATEGORY_KEYS } from '../services/catalog.js';
+import { getSettings } from '../services/settings.js';
 import { computeHabitStats, isComplete } from '../services/habitStats.js';
 import {
   computeDayStatus,
@@ -15,6 +16,7 @@ import { EMOTIONS, parseConfig } from '../services/trackerConfig.js';
 import {
   createdDate,
   getTracker,
+  trackingStart,
   loadBreaks,
   loadExpenses,
   loadTrades,
@@ -27,7 +29,6 @@ import { DATE_RE, resolveRange, todayIn, weekdayOf } from '../utils/date.js';
 
 export const trackersRouter = Router();
 
-const MAX_TRACKERS = 50;
 const dateStr = z.string().regex(DATE_RE, 'Use YYYY-MM-DD');
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Use a hex color like #7C5CFF');
 
@@ -67,8 +68,11 @@ trackersRouter.get('/', async (req, res) => {
 trackersRouter.post('/', async (req, res) => {
   const body = parse(createSchema, req.body);
   const cfg = validateConfig(body.type, body.config);
-  const { rows: count } = await query('SELECT count(*) AS n FROM trackers WHERE user_id = $1', [req.user.id]);
-  if (count[0].n >= MAX_TRACKERS) throw new HttpError(400, `You can have up to ${MAX_TRACKERS} trackers`, 'LIMIT');
+  const [{ rows: count }, settings] = await Promise.all([query('SELECT count(*) AS n FROM trackers WHERE user_id = $1', [req.user.id]), getSettings()]);
+  const max = settings.max_trackers_per_member;
+  if (count[0].n >= max) throw new HttpError(400, `You can have up to ${max} trackers. Archive or delete one to add another.`, 'LIMIT');
+  if ((body.type === 'trading' && !settings.feature_trading) || (body.type === 'spending' && !settings.feature_spending))
+    throw new HttpError(400, 'This kind of tracker is not available right now', 'FEATURE_OFF');
   const defaults = { habit: ['target', '#7C5CFF'], trading: ['chart-line', '#22C55E'], spending: ['wallet-outline', '#14B8A6'] }[body.type];
   const { rows } = await query(
     `INSERT INTO trackers (user_id, type, category, name, icon, color, config, template_slug, sort_order)
@@ -210,7 +214,8 @@ trackersRouter.get('/:id/stats', async (req, res) => {
     query(`SELECT entry_date, value, completed, mood, note FROM daily_entries WHERE tracker_id = $1 AND entry_date BETWEEN $2 AND $3`, [t.id, range.from, range.to]),
     query('SELECT entry_date FROM daily_entries WHERE tracker_id = $1 AND completed', [t.id]),
   ]);
-  res.json(computeHabitStats(cfg, range, createdDate(t, req.user.timezone), today, entries, new Set(done.map((d) => d.entry_date))));
+  const doneDates = done.map((d) => d.entry_date);
+  res.json(computeHabitStats(cfg, range, trackingStart(t, req.user.timezone, doneDates), today, entries, new Set(doneDates)));
 });
 
 trackersRouter.get('/:id/rule-breaks', async (req, res) => {

@@ -8,8 +8,10 @@ import { API_URL, get } from '@/lib/api';
 import { deviceCurrency, deviceTimeZone, useAuth } from '@/lib/auth';
 import { CATEGORIES } from '@/lib/catalog';
 import { setRemindersEnabled } from '@/lib/notifications';
+import { useAppConfig } from '@/lib/config';
 import { usePrefs } from '@/lib/prefs';
 import { useTrackers } from '@/lib/queries';
+import { contactSupport } from '@/lib/support';
 import type { CategoryKey } from '@/lib/types';
 import { colors } from '@/theme';
 
@@ -49,6 +51,7 @@ export default function Profile() {
   const { user, updateProfile, logout, logoutEverywhere } = useAuth();
   const { data: trackers } = useTrackers();
   const remindersConsent = usePrefs((s) => s.remindersConsent);
+  const { settings } = useAppConfig();
   const [name, setName] = useState(user?.name ?? '');
   const [showAllCurrencies, setShowAllCurrencies] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -64,6 +67,10 @@ export default function Profile() {
           <LinkRow icon="shield-account-outline" label="Privacy Policy" onPress={() => router.push('/legal/privacy' as Href)} />
           <Divider />
           <LinkRow icon="file-document-outline" label="Terms of Use" onPress={() => router.push('/legal/terms' as Href)} />
+          <Divider />
+          <LinkRow icon="lifebuoy" label="Help & support" onPress={() => void contactSupport()} />
+          <Divider />
+          <LinkRow icon="message-text-outline" label="Send feedback or report a bug" onPress={() => router.push('/feedback' as Href)} />
         </Card>
         <AdSlot placement="profile" />
       </Screen>
@@ -124,6 +131,12 @@ export default function Profile() {
         </Card>
       ) : null}
 
+      {settings.feature_gamification ? (
+        <Card padded={false} style={{ paddingHorizontal: 20, marginTop: 16 }}>
+          <LinkRow icon="trophy-outline" label="Level & badges" onPress={() => router.push('/achievements' as Href)} />
+        </Card>
+      ) : null}
+
       <SectionTitle>Account</SectionTitle>
       <Card style={{ gap: 18 }}>
         <View style={{ gap: 10 }}>
@@ -177,6 +190,10 @@ export default function Profile() {
         <LinkRow icon="shield-account-outline" label="Privacy Policy" onPress={() => router.push('/legal/privacy' as Href)} />
         <Divider />
         <LinkRow icon="file-document-outline" label="Terms of Use" onPress={() => router.push('/legal/terms' as Href)} />
+          <Divider />
+          <LinkRow icon="lifebuoy" label="Help & support" onPress={() => void contactSupport()} />
+          <Divider />
+          <LinkRow icon="message-text-outline" label="Send feedback or report a bug" onPress={() => router.push('/feedback' as Href)} />
       </Card>
 
       <SectionTitle>Security</SectionTitle>

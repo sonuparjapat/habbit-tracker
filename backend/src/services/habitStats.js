@@ -27,7 +27,19 @@ export function habitStreaks(cfg, doneDates, startDate, today) {
     if (doneDates.has(d)) best = Math.max(best, ++run);
     else if (d !== today) run = 0;
   }
-  return { current, best };
+
+  // A streak that ended on the most recent scheduled day before today (missed it)
+  let lost = 0;
+  let prev = addDays(today, -1);
+  while (prev >= startDate && !scheduled(prev)) prev = addDays(prev, -1);
+  if (prev >= startDate && !doneDates.has(prev)) {
+    for (let d = addDays(prev, -1); d >= startDate; d = addDays(d, -1)) {
+      if (!scheduled(d)) continue;
+      if (doneDates.has(d)) lost++;
+      else break;
+    }
+  }
+  return { current, best, lost };
 }
 
 export function computeHabitStats(cfg, range, createdDate, today, entries, allDoneDates) {

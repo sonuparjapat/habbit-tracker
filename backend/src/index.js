@@ -13,8 +13,18 @@ async function main() {
     console.log(`${config.appName} API listening on :${config.port} (email: ${config.email.provider})`);
   });
 
+  // Housekeeping: used/expired one-time codes are useless after a day
+  const cleanup = () =>
+    pool
+      .query(`DELETE FROM email_codes WHERE expires_at < now() - interval '1 day'`)
+      .catch((err) => console.error('cleanup failed:', err.message));
+  void cleanup();
+  const cleanupTimer = setInterval(cleanup, 60 * 60 * 1000);
+  cleanupTimer.unref();
+
   const shutdown = (signal) => {
     console.log(`${signal} received, shutting down`);
+    clearInterval(cleanupTimer);
     server.close(() => pool.end().then(() => process.exit(0)));
     setTimeout(() => process.exit(1), 10_000).unref();
   };

@@ -16,6 +16,10 @@ export const PERMISSIONS = Object.freeze({
   ADMINS_MANAGE: 'admins.manage',
   TEMPLATES_MANAGE: 'templates.manage',
   AUDIT_VIEW: 'audit.view',
+  CONTENT_MANAGE: 'content.manage',
+  FEEDBACK_MANAGE: 'feedback.manage',
+  SETTINGS_MANAGE: 'settings.manage',
+  SYSTEM_VIEW: 'system.view',
 });
 
 /** `me` is the signed-in user from /api/session (it carries its own permissions list). */

@@ -233,6 +233,8 @@ function tradingInsights(cfg, currency, s, d, byEmotion, byWeekday) {
 export function tradingAlerts(cfg, currency, status, streaks, breaksLast7Days) {
   const out = [];
   const m = (n) => money(n, currency);
+  if (!status.isTradingDay && status.trades === 0)
+    out.push({ level: 'info', title: 'Day off', message: 'Not one of your trading days. Rest is part of the plan — the market will be there tomorrow.' });
   if (status.lossLimitHit) out.push({ level: 'danger', title: 'Loss limit hit — stop now', message: 'Close the terminal. Losing days are part of the game; revenge days end accounts.' });
   else if (status.targetHit && cfg.stopAfterTarget) out.push({ level: 'success', title: 'Target hit — day closed', message: `${m(status.netPnl)} today. Your job is done. Walk away and protect it.` });
   else if (status.tradeLimitHit) out.push({ level: 'info', title: 'Trade limit reached', message: 'The market will be there tomorrow. Nothing more to do today.' });

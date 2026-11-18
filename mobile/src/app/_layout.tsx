@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppGates } from '@/components/gates';
 import { useAuth } from '@/lib/auth';
 import { scheduleReminders } from '@/lib/notifications';
 import { usePrefs } from '@/lib/prefs';
@@ -71,6 +72,7 @@ export default function RootLayout() {
         <ThemeProvider value={navTheme}>
           <StatusBar style="light" />
           {token ? <ReminderSync /> : null}
+          <AppGates>
           <Stack
             screenOptions={{
               headerStyle: { backgroundColor: colors.bg },
@@ -99,11 +101,13 @@ export default function RootLayout() {
             <Stack.Screen name="register" options={{ headerShown: false, ...modal }} />
             <Stack.Screen name="forgot-password" options={{ title: 'Reset password', ...modal }} />
             <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
+            <Stack.Screen name="feedback" options={{ title: 'Send feedback', ...modal }} />
 
             {/* Your data: only when signed in. Guests reach these via goProtected() (sign-in sheet first);
                 if one is opened any other way (deep link, notification, signing out), go home — never to a login wall. */}
             <Stack.Protected guard={!!token} redirectTo={showOnboarding ? '/onboarding' : '/'}>
               <Stack.Screen name="verify-email" options={{ title: 'Verify email', ...modal }} />
+              <Stack.Screen name="achievements" options={{ title: 'Level & badges' }} />
               <Stack.Screen name="account/password" options={{ title: 'Change password', ...modal }} />
               <Stack.Screen name="account/delete" options={{ title: 'Delete account', ...modal }} />
               <Stack.Screen name="tracker/new" options={{ title: 'New tracker', ...modal }} />
@@ -116,6 +120,7 @@ export default function RootLayout() {
               <Stack.Screen name="tracker/[id]/breaks" options={{ title: 'Rule breaks' }} />
             </Stack.Protected>
           </Stack>
+          </AppGates>
         </ThemeProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

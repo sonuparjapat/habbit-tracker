@@ -45,9 +45,10 @@ export default function Onboarding() {
 
 function Welcome({ onNext }: { onNext: () => void }) {
   const points = [
-    { icon: 'shield-lock-outline', color: colors.green, text: 'Set your own limits — for trading, money, health or habits' },
-    { icon: 'alert-octagon-outline', color: colors.red, text: 'Get stopped before you break them, not after' },
-    { icon: 'chart-timeline-variant', color: colors.blue, text: 'See daily, weekly and monthly what discipline is worth' },
+    { icon: 'dumbbell', color: colors.amber, text: 'Build any habit — workouts, reading, sleep, meditation, saving' },
+    { icon: 'cancel', color: colors.red, text: 'Quit or cut down — smoking, alcohol, social media, junk food' },
+    { icon: 'fire', color: colors.green, text: 'Streaks, XP and badges that make you want to show up every day' },
+    { icon: 'chart-timeline-variant', color: colors.blue, text: 'See your progress daily, weekly and monthly' },
   ];
   return (
     <View style={{ flex: 1, justifyContent: 'space-between', gap: 32 }}>
@@ -58,7 +59,7 @@ function Welcome({ onNext }: { onNext: () => void }) {
         <View style={{ gap: 12 }}>
           <Txt variant="title" center style={{ fontSize: 32, lineHeight: 38 }}>Keep the promises you make to yourself</Txt>
           <Txt variant="caption" center style={{ fontSize: 16, lineHeight: 23 }}>
-            Anchor helps you stick to the rules you set — and shows you honestly when you don’t.
+            Pick what you want to change, set your own goal, and Anchor helps you show up every single day.
           </Txt>
         </View>
         <View style={{ gap: 18, marginTop: 8 }}>

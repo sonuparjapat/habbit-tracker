@@ -4,7 +4,7 @@ import type { CategoryKey } from './types';
 
 /**
  * On-device preferences that exist before (and without) an account:
- * whether onboarding was completed, chosen interests, and permission choices.
+ * onboarding, interests, permission choices and small UI memories.
  */
 const KEY = 'prefs_v1';
 
@@ -13,6 +13,12 @@ interface PrefsData {
   interests: CategoryKey[];
   /** User explicitly agreed to receive reminders (we never ask the OS before this) */
   remindersConsent: boolean;
+  /** Announcement ids the user closed */
+  dismissedAnnouncements: string[];
+  /** Highest level already celebrated, so a level-up is celebrated exactly once */
+  celebratedLevel: number;
+  /** "Update available" banner closed for this version */
+  dismissedUpdate: string | null;
 }
 
 interface PrefsState extends PrefsData {
@@ -21,7 +27,24 @@ interface PrefsState extends PrefsData {
   update: (patch: Partial<PrefsData>) => Promise<void>;
 }
 
-const defaults: PrefsData = { onboarded: false, interests: [], remindersConsent: false };
+const defaults: PrefsData = {
+  onboarded: false,
+  interests: [],
+  remindersConsent: false,
+  dismissedAnnouncements: [],
+  celebratedLevel: 0,
+  dismissedUpdate: null,
+};
+
+const pickData = (s: PrefsData): PrefsData => ({
+  onboarded: s.onboarded,
+  interests: s.interests,
+  remindersConsent: s.remindersConsent,
+  // Keep the list short: only the most recent dismissals matter
+  dismissedAnnouncements: s.dismissedAnnouncements.slice(-50),
+  celebratedLevel: s.celebratedLevel,
+  dismissedUpdate: s.dismissedUpdate,
+});
 
 export const usePrefs = create<PrefsState>((set, get) => ({
   ...defaults,
@@ -36,7 +59,6 @@ export const usePrefs = create<PrefsState>((set, get) => ({
   },
   update: async (patch) => {
     set(patch);
-    const { onboarded, interests, remindersConsent } = { ...get(), ...patch };
-    await storage.set(KEY, JSON.stringify({ onboarded, interests, remindersConsent }));
+    await storage.set(KEY, JSON.stringify(pickData({ ...get(), ...patch })));
   },
 }));

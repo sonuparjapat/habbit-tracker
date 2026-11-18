@@ -35,6 +35,12 @@ export function requireType(t, type) {
 
 export const createdDate = (t, timeZone) => dateIn(new Date(t.created_at), timeZone);
 
+/**
+ * Where streaks and stats start: the creation day, or the first logged day if the member
+ * back-filled earlier days (e.g. "I've already been running for 3 days").
+ */
+export const trackingStart = (t, timeZone, dates) => dates.reduce((min, d) => (d < min ? d : min), createdDate(t, timeZone));
+
 export async function loadTrades(trackerId, from, to) {
   const { rows } = await query(
     `SELECT id, trade_date, (pnl - fees)::float8 AS net, is_rule_break, emotion_before, followed_plan
@@ -67,9 +73,11 @@ export async function loadExpenses(trackerId, from, to) {
 export async function tradingToday(t, user) {
   const cfg = parseConfig('trading', t.config);
   const today = todayIn(user.timezone);
+  // Streaks and weekly counts only need recent history; cap the scan so it stays fast for long-time users
+  const since = addDays(today, -400);
   const [allTrades, allBreaks, journal] = await Promise.all([
-    loadTrades(t.id, '2000-01-01', today),
-    loadBreaks(t.id, '2000-01-01', today),
+    loadTrades(t.id, since, today),
+    loadBreaks(t.id, since, today),
     query('SELECT completed FROM daily_entries WHERE tracker_id = $1 AND entry_date = $2', [t.id, today]),
   ]);
   const status = computeDayStatus(cfg, today, weekdayOf(today), allTrades.filter((x) => x.trade_date === today), user.currency);
@@ -96,16 +104,36 @@ export async function habitToday(t, user) {
   );
   const done = new Set(rows.filter((r) => r.completed).map((r) => r.entry_date));
   const todayRow = rows.find((r) => r.entry_date === today);
-  const streak = habitStreaks(cfg, done, createdDate(t, user.timezone), today);
+  const streak = habitStreaks(cfg, done, trackingStart(t, user.timezone, rows.map((r) => r.entry_date)), today);
+  const scheduledToday = cfg.days.includes(weekdayOf(today));
+  const completedToday = Boolean(todayRow?.completed);
+
+  // Loss aversion: make an at-risk or just-lost streak impossible to ignore
+  const alerts = [];
+  if (scheduledToday && !completedToday && streak.current >= 2)
+    alerts.push({
+      level: 'warning',
+      title: `🔥 ${streak.current}-day streak at risk — ${t.name}`,
+      message: cfg.kind === 'limit' ? 'Log today before midnight to keep it.' : 'Check in before midnight or it resets to zero.',
+    });
+  if (streak.lost >= 3 && !completedToday)
+    alerts.push({
+      level: 'danger',
+      title: `You lost a ${streak.lost}-day streak — ${t.name}`,
+      message: 'It happens. What matters is today: check in and start the next one.',
+    });
+
   return {
     date: today,
-    scheduledToday: cfg.days.includes(weekdayOf(today)),
+    scheduledToday,
     loggedToday: Boolean(todayRow),
-    completedToday: Boolean(todayRow?.completed),
+    completedToday,
     valueToday: todayRow?.value ?? 0,
     overLimit: cfg.kind === 'limit' && Boolean(todayRow) && todayRow.value > cfg.target,
     currentStreak: streak.current,
     bestStreak: streak.best,
+    lostStreak: streak.lost,
+    alerts,
   };
 }
 

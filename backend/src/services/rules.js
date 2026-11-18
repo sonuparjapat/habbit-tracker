@@ -12,6 +12,7 @@ export const RULE_LABELS = {
   max_loss: 'Loss limit exceeded',
   no_plan: 'Trade outside plan',
   checklist: 'Skipped checklist',
+  off_day: 'Traded on a day off',
   // spending
   over_daily: 'Over daily budget',
   over_monthly: 'Over monthly budget',
@@ -37,7 +38,9 @@ export function computeDayStatus(cfg, date, weekday, tradesSoFar, currency) {
   const lossLimitHit = cfg.dailyMaxLoss > 0 && netPnl <= -cfg.dailyMaxLoss;
   const tradeLimitHit = trades >= cfg.maxTradesPerDay;
 
+  const isTradingDay = cfg.tradingDays.includes(weekday);
   const lockReasons = [];
+  if (!isTradingDay) lockReasons.push({ rule: 'off_day', message: 'Today is not one of your trading days. Rest is part of the plan.' });
   if (cfg.stopAfterTarget && targetHit)
     lockReasons.push({ rule: 'after_target', message: `Target of ${money(cfg.dailyProfitTarget, currency)} reached. Day closed.` });
   if (lossLimitHit)
@@ -60,7 +63,7 @@ export function computeDayStatus(cfg, date, weekday, tradesSoFar, currency) {
     targetHit,
     lossLimitHit,
     tradeLimitHit,
-    isTradingDay: cfg.tradingDays.includes(weekday),
+    isTradingDay,
     locked: lockReasons.length > 0,
     lockReasons,
     progress,
@@ -70,6 +73,7 @@ export function computeDayStatus(cfg, date, weekday, tradesSoFar, currency) {
 /** Which rules does `trade` break, given the state of the day *before* it was taken? */
 export function evaluateTrade(cfg, before, trade, currency) {
   const found = [];
+  if (!before.isTradingDay) found.push({ rule: 'off_day', description: 'Traded on a day you planned not to trade' });
   if (before.tradeLimitHit)
     found.push({ rule: 'max_trades', description: `Trade #${before.trades + 1} — your limit is ${cfg.maxTradesPerDay}/day` });
   if (cfg.stopAfterTarget && before.targetHit)

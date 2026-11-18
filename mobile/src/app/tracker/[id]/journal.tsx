@@ -2,8 +2,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { Button, Card, Chip, haptic, Input, Loading, Row, Screen, SectionTitle, ToggleRow, Txt } from '@/components/ui';
-import { addDays, localToday, longDate } from '@/lib/format';
-import { useEntries, useSaveEntry, useTracker } from '@/lib/queries';
+import { addDays, longDate } from '@/lib/format';
+import { useEntries, useSaveEntry, useToday, useTracker } from '@/lib/queries';
 import type { Entry, Tracker } from '@/lib/types';
 import { colors } from '@/theme';
 
@@ -13,8 +13,9 @@ export default function Journal() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: tracker } = useTracker(id);
   const { data: entries, isLoading } = useEntries(id, 'month');
-  const today = localToday();
-  const [date, setDate] = useState(today);
+  const today = useToday(id);
+  const [day, setDay] = useState<'today' | 'yesterday'>('today');
+  const date = day === 'today' ? today : addDays(today, -1);
 
   if (isLoading || !tracker) return <Loading />;
 
@@ -22,8 +23,8 @@ export default function Journal() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen edges={['bottom']}>
         <Row gap={8}>
-          <Chip label="Today" selected={date === today} onPress={() => setDate(today)} />
-          <Chip label="Yesterday" selected={date === addDays(today, -1)} onPress={() => setDate(addDays(today, -1))} />
+          <Chip label="Today" selected={day === 'today'} onPress={() => setDay('today')} />
+          <Chip label="Yesterday" selected={day === 'yesterday'} onPress={() => setDay('yesterday')} />
         </Row>
         <Txt variant="h2" style={{ marginTop: 14 }}>{longDate(date)}</Txt>
         {/* Keyed by date so the form re-initialises from that day's saved entry */}

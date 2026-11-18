@@ -2,13 +2,15 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 import { Card, Screen, Txt } from '@/components/ui';
 import { colors } from '@/theme';
+import { supportEmail } from '@/lib/support';
 
 /**
  * ⚠️ Starting-point text only. Have these reviewed for the countries you launch in
  * (e.g. India DPDP Act 2023, EU GDPR, California CCPA) before publishing.
  * Replace the contact email and company name. Bump TERMS_VERSION on the server when they change.
  */
-const CONTACT = 'support@yourdomain.com';
+// Replaced with the support email from Admin → App settings when the page is shown
+const CONTACT = '{{contact}}';
 const UPDATED = '18 November 2026';
 
 const DOCS: Record<string, { title: string; sections: [string, string][] }> = {
@@ -51,7 +53,7 @@ export default function Legal() {
         {d.sections.map(([h, body]) => (
           <Card key={h} style={{ gap: 8 }}>
             <Txt variant="h3">{h}</Txt>
-            <Txt color={colors.textMuted} style={{ fontSize: 15, lineHeight: 22 }}>{body}</Txt>
+            <Txt color={colors.textMuted} style={{ fontSize: 15, lineHeight: 22 }}>{body.replace('{{contact}}', supportEmail() || 'Profile → Help & support in the app')}</Txt>
           </Card>
         ))}
       </View>

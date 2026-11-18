@@ -1,57 +1,73 @@
 'use client';
 
+import axios from 'axios';
+import { API_URL } from './config';
+
 /**
- * Browser-side API client. Calls go to this website's own /api/backend/* route,
- * which attaches the session from the httpOnly cookie on the server.
+ * Backend API client — calls the Anchor API directly.
+ * The login token is kept in localStorage and sent as `Authorization: Bearer <token>`.
+ *
+ *   const { users } = await get('/admin/users');
+ *   await post('/admin/announcements', { title: 'Hi' });
  */
 
-export class ApiError extends Error {
-  constructor(status, message, code) {
-    super(message);
-    this.status = status;
-    this.code = code;
-  }
-}
+const TOKEN_KEY = 'anchor_token';
 
-async function request(method, path, body, base = '/api/backend') {
-  let res;
-  try {
-    res = await fetch(`${base}/${path.replace(/^\/+/, '')}`, {
-      method,
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-      body: body === undefined ? undefined : JSON.stringify(body),
-      cache: 'no-store',
-    });
-  } catch {
-    throw new ApiError(0, 'Network error — check your connection', 'NETWORK');
-  }
-  if (res.status === 204) return null;
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    // Session ended (expired, revoked, suspended): back to sign-in
-    if (res.status === 401 && typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
-      // A full page load (not router.push) is intended: it drops all in-memory state of the old session.
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.assign(`/admin/login?next=${encodeURIComponent(window.location.pathname)}`);
-    }
-    throw new ApiError(res.status, data?.error?.message ?? `Request failed (${res.status})`, data?.error?.code);
-  }
-  return data;
-}
-
-export const api = {
-  get: (p) => request('GET', p),
-  post: (p, b) => request('POST', p, b),
-  patch: (p, b) => request('PATCH', p, b),
-  del: (p) => request('DELETE', p),
+export const token = {
+  get: () => (typeof window === 'undefined' ? null : localStorage.getItem(TOKEN_KEY)),
+  set: (t) => localStorage.setItem(TOKEN_KEY, t),
+  clear: () => localStorage.removeItem(TOKEN_KEY),
 };
 
-export const { get, post, patch, del } = api;
+export const http = axios.create({ baseURL: API_URL, timeout: 20000 });
 
+// Attach the token to every request
+http.interceptors.request.use((cfg) => {
+  const t = token.get();
+  if (t) cfg.headers.Authorization = `Bearer ${t}`;
+  return cfg;
+});
+
+// Turn backend errors into readable messages; send expired sessions back to the login page
+http.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const status = err.response?.status ?? 0;
+    const body = err.response?.data?.error;
+    if (status === 401 && token.get()) {
+      token.clear();
+      if (window.location.pathname.startsWith('/admin') && window.location.pathname !== '/admin/login') {
+        // A full reload (not router.push) on purpose: it clears everything from the old session
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = `/admin/login?next=${encodeURIComponent(window.location.pathname)}`;
+      }
+    }
+    const message = body?.message ?? (status ? `Request failed (${status})` : 'Cannot reach the server — check your connection');
+    return Promise.reject(Object.assign(new Error(message), { status, code: body?.code }));
+  },
+);
+
+const data = (p) => p.then((res) => (res.status === 204 ? null : res.data));
+
+export const get = (url) => data(http.get(url));
+export const post = (url, body) => data(http.post(url, body));
+export const put = (url, body) => data(http.put(url, body));
+export const patch = (url, body) => data(http.patch(url, body));
+export const del = (url) => data(http.delete(url));
+export const api = { get, post, put, patch, del };
+
+/** Admin sign-in / sign-out. */
 export const session = {
-  get: () => request('GET', '', undefined, '/api/session'),
-  login: (email, password, scope) => request('POST', '', { email, password, scope }, '/api/session'),
-  logout: () => request('DELETE', '', undefined, '/api/session'),
+  async login(email, password, scope) {
+    const { token: t, user } = await post('/auth/login', { email, password });
+    if (scope === 'admin' && !user.isAdmin) throw new Error('This account does not have admin access');
+    token.set(t);
+    return { user };
+  },
+  get: () => get('/auth/me'),
+  async logout() {
+    token.clear();
+  },
 };
 
 export const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—');

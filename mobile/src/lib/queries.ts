@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { del, get, patch, post, put } from './api';
+import { localToday } from './format';
 import { useAuth } from './auth';
 import { queryClient } from './queryClient';
 import type {
@@ -73,6 +74,15 @@ export const useTracker = (id: string) =>
 
 export function useTrackerToday<T extends TradingToday | HabitToday | SpendingToday>(id: string) {
   return useQuery({ queryKey: keys.today(id), queryFn: () => get<T>(`/trackers/${id}/today`), enabled: useSignedIn() && !!id });
+}
+
+/**
+ * "Today" in the user's profile timezone, as the server sees it.
+ * Use this (not the phone clock) for anything that is saved against a date.
+ */
+export function useToday(trackerId: string) {
+  const { data } = useTrackerToday(trackerId);
+  return (data as { date?: string } | undefined)?.date ?? localToday();
 }
 
 export function useStats<T extends TradingStats | HabitStats | SpendingStats>(id: string, period: Period) {
@@ -196,6 +206,15 @@ export function useCreateExpense(trackerId: string) {
       post<{ expenseId: string; breaks: RuleBreak[] }>(`/trackers/${trackerId}/expenses`, body),
     onSuccess: invalidateAll,
   });
+}
+
+/** After the celebration is shown, so it isn't shown again. */
+export function useMarkAchievementsSeen() {
+  return useMutation({ mutationFn: () => post('/dashboard/achievements/seen'), onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.dashboard }) });
+}
+
+export function sendFeedback(body: { kind: 'bug' | 'idea' | 'question' | 'other'; message: string; email?: string; appVersion?: string; platform?: string }) {
+  return post<{ ok: true; message: string }>('/feedback', body);
 }
 
 export function useDeleteExpense() {

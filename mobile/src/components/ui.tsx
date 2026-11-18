@@ -374,7 +374,7 @@ export function Checkbox({ checked, onChange, children }: { checked: boolean; on
   );
 }
 
-export function IconButton({ icon, onPress, color = colors.textMuted, size = 40 }: { icon: string; onPress: () => void; color?: string; size?: number }) {
+export function IconButton({ icon, onPress, label, color = colors.textMuted, size = 40 }: { icon: string; onPress: () => void; label: string; color?: string; size?: number }) {
   return (
     <Pressable
       onPress={() => {
@@ -382,6 +382,8 @@ export function IconButton({ icon, onPress, color = colors.textMuted, size = 40 
         onPress();
       }}
       hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={label}
       style={({ pressed }) => ({
         width: size,
         height: size,

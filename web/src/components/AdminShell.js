@@ -3,22 +3,37 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, use, useEffect, useState } from 'react';
-import { session } from '@/lib/api';
-import { can, PERMISSIONS, ROLE_BADGE } from '@/lib/roles';
+import { api, session } from '@/lib/api';
+import { can, PERMISSIONS as P, ROLE_BADGE } from '@/lib/roles';
+import { ToastProvider } from './admin/kit';
 
-// Each page needs a permission; pages the signed-in admin can't use are hidden.
+/**
+ * Admin navigation. To add a page: create src/app/admin/(panel)/<name>/page.js and add one entry here.
+ * Entries the signed-in admin lacks permission for are hidden (and blocked if opened directly).
+ */
 const NAV = [
-  { href: '/admin', label: 'Dashboard', icon: '◧', permission: PERMISSIONS.DASHBOARD_VIEW },
-  { href: '/admin/users', label: 'Users', icon: '◉', permission: PERMISSIONS.USERS_VIEW },
-  { href: '/admin/templates', label: 'Templates', icon: '▦', permission: PERMISSIONS.TEMPLATES_MANAGE },
-  { href: '/admin/audit', label: 'Audit log', icon: '☰', permission: PERMISSIONS.AUDIT_VIEW },
+  { group: 'Overview' },
+  { href: '/admin', label: 'Dashboard', icon: '◧', permission: P.DASHBOARD_VIEW },
+  { group: 'People' },
+  { href: '/admin/users', label: 'Users', icon: '◉', permission: P.USERS_VIEW },
+  { href: '/admin/feedback', label: 'Feedback', icon: '✉', permission: P.FEEDBACK_MANAGE, countKey: 'feedback' },
+  { group: 'Content' },
+  { href: '/admin/templates', label: 'Templates', icon: '▦', permission: P.TEMPLATES_MANAGE },
+  { href: '/admin/announcements', label: 'Announcements', icon: '📣', permission: P.CONTENT_MANAGE },
+  { group: 'Configuration' },
+  { href: '/admin/settings', label: 'App settings', icon: '⚙', permission: P.SETTINGS_MANAGE },
+  { href: '/admin/system', label: 'System', icon: '◎', permission: P.SYSTEM_VIEW },
+  { href: '/admin/audit', label: 'Audit log', icon: '☰', permission: P.AUDIT_VIEW },
 ];
+
+const isActive = (href, pathname) => (href === '/admin' ? pathname === '/admin' : pathname.startsWith(href));
 
 export function AdminShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [me, setMe] = useState(null);
   const [denied, setDenied] = useState(false);
+  const [counts, setCounts] = useState({});
 
   useEffect(() => {
     session
@@ -28,6 +43,15 @@ export function AdminShell({ children }) {
     // Only on first load of the admin area
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Unread-feedback badge in the menu, refreshed when navigating
+  useEffect(() => {
+    if (!me || !can(me, P.FEEDBACK_MANAGE)) return;
+    api
+      .get('/admin/feedback?status=new')
+      .then((d) => setCounts({ feedback: d.counts?.new ?? 0 }))
+      .catch(() => {});
+  }, [me, pathname]);
 
   const signOut = async () => {
     await session.logout().catch(() => {});
@@ -47,40 +71,50 @@ export function AdminShell({ children }) {
     );
   if (!me) return <div className="spinner" />;
 
-  const current = NAV.find((n) => (n.href === '/admin' ? pathname === '/admin' : pathname.startsWith(n.href)));
+  const visible = NAV.filter((n, i) => {
+    if (!n.group) return can(me, n.permission);
+    // Show a group heading only if at least one item under it is visible
+    for (let j = i + 1; j < NAV.length && !NAV[j].group; j++) if (can(me, NAV[j].permission)) return true;
+    return false;
+  });
+  const current = NAV.filter((n) => n.href && isActive(n.href, pathname)).sort((a, b) => b.href.length - a.href.length)[0];
   const allowed = !current || can(me, current.permission);
 
   return (
-    <div className="layout">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark">⚓</div>
-          Anchor <span className="badge violet">Admin</span>
-        </div>
-        {NAV.filter((n) => can(me, n.permission)).map((n) => {
-          const active = n.href === '/admin' ? pathname === '/admin' : pathname.startsWith(n.href);
-          return (
-            <Link key={n.href} href={n.href} className={`nav-item ${active ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
-              <span style={{ width: 18, textAlign: 'center' }}>{n.icon}</span>
-              {n.label}
-            </Link>
-          );
-        })}
-        <div className="sidebar-foot">
-          <div style={{ color: 'var(--text)', fontWeight: 600 }}>{me.name}</div>
-          {ROLE_BADGE[me.role] ? <span className={ROLE_BADGE[me.role].className} style={{ margin: '4px 0' }}>{ROLE_BADGE[me.role].label}</span> : null}
-          <div style={{ wordBreak: 'break-all' }}>{me.email}</div>
-          <button className="btn btn-sm" style={{ marginTop: 12, width: '100%' }} onClick={signOut}>
-            Sign out
-          </button>
-        </div>
-      </aside>
-      <main className="main">
-        <AdminContext value={me}>
-          {allowed ? children : <div className="card"><h2>No access</h2><p className="muted">Your role doesn’t include this page. Ask a super admin if you need it.</p></div>}
-        </AdminContext>
-      </main>
-    </div>
+    <ToastProvider>
+      <div className="layout">
+        <aside className="sidebar">
+          <div className="brand">
+            <div className="brand-mark">⚓</div>
+            Anchor <span className="badge violet">Admin</span>
+          </div>
+          {visible.map((n) =>
+            n.group ? (
+              <div key={n.group} className="nav-group">{n.group}</div>
+            ) : (
+              <Link key={n.href} href={n.href} className={`nav-item ${current?.href === n.href ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
+                <span style={{ width: 18, textAlign: 'center' }}>{n.icon}</span>
+                {n.label}
+                {n.countKey && counts[n.countKey] ? <span className="nav-count">{counts[n.countKey]}</span> : null}
+              </Link>
+            ),
+          )}
+          <div className="sidebar-foot">
+            <div style={{ color: 'var(--text)', fontWeight: 600 }}>{me.name}</div>
+            {ROLE_BADGE[me.role] ? <span className={ROLE_BADGE[me.role].className} style={{ margin: '4px 0' }}>{ROLE_BADGE[me.role].label}</span> : null}
+            <div style={{ wordBreak: 'break-all' }}>{me.email}</div>
+            <button className="btn btn-sm" style={{ marginTop: 12, width: '100%' }} onClick={signOut}>
+              Sign out
+            </button>
+          </div>
+        </aside>
+        <main className="main">
+          <AdminContext value={me}>
+            {allowed ? children : <div className="card"><h2>No access</h2><p className="muted">Your role doesn’t include this page. Ask a super admin if you need it.</p></div>}
+          </AdminContext>
+        </main>
+      </div>
+    </ToastProvider>
   );
 }
 

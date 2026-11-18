@@ -2,12 +2,12 @@ import type { Category, CategoryKey } from './types';
 
 /** Mirrors the server catalog so the app works before the first network call. */
 export const CATEGORIES: Category[] = [
-  { key: 'trading', label: 'Trading & Investing', icon: 'chart-line', color: '#22C55E', description: 'Trade limits, profit targets, stop-loss discipline' },
   { key: 'fitness', label: 'Health & Fitness', icon: 'dumbbell', color: '#F59E0B', description: 'Workouts, steps, water, sleep' },
   { key: 'mind', label: 'Mind & Wellbeing', icon: 'meditation', color: '#7C5CFF', description: 'Meditation, journaling, gratitude' },
   { key: 'money', label: 'Money & Spending', icon: 'wallet-outline', color: '#14B8A6', description: 'Daily budgets, saving, no impulse buys' },
   { key: 'productivity', label: 'Study & Productivity', icon: 'book-open-variant', color: '#4F8BFF', description: 'Deep work, reading, learning' },
   { key: 'quit', label: 'Quit Bad Habits', icon: 'cancel', color: '#F43F5E', description: 'Smoking, alcohol, social media, gambling' },
+  { key: 'trading', label: 'Trading & Investing', icon: 'chart-line', color: '#22C55E', description: 'Trade limits, profit targets, stop-loss discipline' },
   { key: 'other', label: 'Something else', icon: 'star-four-points-outline', color: '#EC4899', description: 'Build your own tracker' },
 ];
 

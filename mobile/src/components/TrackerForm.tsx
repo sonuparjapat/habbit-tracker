@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useAuth } from '@/lib/auth';
+import { usePrefs } from '@/lib/prefs';
 import { CATEGORIES, ICONS, MARKETS } from '@/lib/catalog';
 import { money, WEEKDAY_LETTERS } from '@/lib/format';
 import type { CategoryKey, HabitConfig, SpendingConfig, TrackerType, TradingConfig } from '@/lib/types';
@@ -89,6 +90,7 @@ function ListEditor({ items, onChange, placeholder }: { items: string[]; onChang
 
 function TimeField({ label, value, onChange }: { label: string; value: string | null; onChange: (v: string | null) => void }) {
   const [text, setText] = useState(value ?? '');
+  const remindersOn = usePrefs((s) => s.remindersConsent);
   return (
     <Input
       label={label}
@@ -101,7 +103,13 @@ function TimeField({ label, value, onChange }: { label: string; value: string | 
         if (t === '') onChange(null);
         else if (validTime(t)) onChange(t);
       }}
-      hint={text && !validTime(text) ? 'Use 24-hour HH:MM' : undefined}
+      hint={
+        text && !validTime(text)
+          ? 'Use 24-hour HH:MM'
+          : value && !remindersOn
+            ? 'Reminders are turned off — switch them on in Profile → Privacy & notifications.'
+            : undefined
+      }
     />
   );
 }

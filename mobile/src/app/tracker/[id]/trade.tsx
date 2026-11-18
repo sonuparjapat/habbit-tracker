@@ -20,9 +20,10 @@ import {
 } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { addDays, localToday, money } from '@/lib/format';
+import { useAppConfig } from '@/lib/config';
+import { addDays, money } from '@/lib/format';
 import { scheduleStayAwayNudge } from '@/lib/notifications';
-import { useCreateTrade, useDashboard, useDayStatus, useTracker, type NewTrade } from '@/lib/queries';
+import { useCreateTrade, useDashboard, useDayStatus, useToday, useTracker, type NewTrade } from '@/lib/queries';
 import { EMOTIONS, emotionOf, type DayStatus, type RuleBreak, type TradingTracker } from '@/lib/types';
 import { colors, gradients } from '@/theme';
 
@@ -375,6 +376,7 @@ function TradeForm({
   onDone: (r: { breaks: RuleBreak[]; status: DayStatus }) => void;
 }) {
   const create = useCreateTrade(tracker.id);
+  const serverToday = useToday(tracker.id);
   const [side, setSide] = useState<'profit' | 'loss'>('profit');
   const [amount, setAmount] = useState('');
   const [fees, setFees] = useState('');
@@ -404,7 +406,7 @@ function TradeForm({
     create.mutate(
       {
         ...base,
-        tradeDate: day === 'yesterday' ? addDays(localToday(), -1) : undefined,
+        tradeDate: day === 'yesterday' ? addDays(serverToday, -1) : undefined,
         pnl: side === 'loss' ? -Math.abs(value) : Math.abs(value),
         fees: Number(fees) || 0,
         direction,
@@ -503,13 +505,24 @@ function TradeForm({
 function ResultView({ tracker, result }: { tracker: TradingTracker; result: { breaks: RuleBreak[]; status: DayStatus } }) {
   const currency = useAuth((s) => s.user?.currency ?? 'USD');
   const s = result.status;
+  const today = useToday(tracker.id);
+  const { settings } = useAppConfig();
+  const xpChange = settings.feature_gamification ? (result.breaks.length ? -settings.xp_rule_break * result.breaks.length : settings.xp_clean_trade) : 0;
   const broke = result.breaks.length > 0;
 
+  // Feedback once, when the result appears
   useEffect(() => {
     if (broke) haptic.error();
     else haptic.success();
-    if (s.locked && s.date === localToday()) void scheduleStayAwayNudge(s.netPnl, currency);
-  }, [broke, s, currency]);
+  }, [broke]);
+
+  // If today's trading day just closed, nudge the user later to stay away (once, even if `today` updates)
+  const nudged = useRef(false);
+  useEffect(() => {
+    if (nudged.current || !s.locked || s.date !== today) return;
+    nudged.current = true;
+    void scheduleStayAwayNudge(s.netPnl, currency);
+  }, [s, today, currency]);
 
   const tone = broke ? gradients.red : s.targetHit ? gradients.green : gradients.primary;
   const title = broke
@@ -540,6 +553,14 @@ function ResultView({ tracker, result }: { tracker: TradingTracker; result: { br
         <AlertCard key={b.rule} alert={{ level: 'danger', title: b.label ?? b.rule, message: b.description }} />
       ))}
 
+      {xpChange ? (
+        <Row gap={8} style={{ justifyContent: 'center' }}>
+          <Icon name={xpChange > 0 ? 'star-four-points' : 'arrow-down-bold'} size={18} color={xpChange > 0 ? colors.green : colors.red} />
+          <Txt variant="h3" color={xpChange > 0 ? colors.green : colors.red}>
+            {xpChange > 0 ? `+${xpChange} XP — clean trade` : `${xpChange} XP — ${result.breaks.length} rule${result.breaks.length > 1 ? 's' : ''} broken`}
+          </Txt>
+        </Row>
+      ) : null}
       <Button title="Write today's journal" icon="notebook-edit-outline" variant="secondary" onPress={() => router.replace(`/tracker/${tracker.id}/journal`)} />
       <Button title="Done" onPress={() => router.back()} />
     </Screen>

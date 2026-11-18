@@ -53,7 +53,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen contentStyle={{ flexGrow: 1, gap: 28, paddingBottom: 48 }}>
         <Row style={{ justifyContent: 'flex-end' }}>
-          <IconButton icon="close" onPress={close} />
+          <IconButton icon="close" label="Close" onPress={close} />
         </Row>
 
         <View style={{ alignItems: 'center', gap: 14 }}>

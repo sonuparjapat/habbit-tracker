@@ -1,12 +1,12 @@
 /** Static reference data served to the app via GET /api/meta. */
 
 export const CATEGORIES = [
-  { key: 'trading', label: 'Trading & Investing', icon: 'chart-line', color: '#22C55E', description: 'Trade limits, profit targets, stop-loss discipline' },
   { key: 'fitness', label: 'Health & Fitness', icon: 'dumbbell', color: '#F59E0B', description: 'Workouts, steps, water, sleep' },
   { key: 'mind', label: 'Mind & Wellbeing', icon: 'meditation', color: '#7C5CFF', description: 'Meditation, journaling, gratitude' },
   { key: 'money', label: 'Money & Spending', icon: 'wallet-outline', color: '#14B8A6', description: 'Daily budgets, saving, no impulse buys' },
   { key: 'productivity', label: 'Study & Productivity', icon: 'book-open-variant', color: '#4F8BFF', description: 'Deep work, reading, learning' },
   { key: 'quit', label: 'Quit Bad Habits', icon: 'cancel', color: '#F43F5E', description: 'Smoking, alcohol, social media, gambling' },
+  { key: 'trading', label: 'Trading & Investing', icon: 'chart-line', color: '#22C55E', description: 'Trade limits, profit targets, stop-loss discipline' },
   { key: 'other', label: 'Something else', icon: 'star-four-points-outline', color: '#EC4899', description: 'Build your own tracker' },
 ];
 export const CATEGORY_KEYS = CATEGORIES.map((c) => c.key);
@@ -42,6 +42,17 @@ export const DEFAULT_SPENDING_CATEGORIES = ['Food', 'Transport', 'Shopping', 'Bi
  * Default templates, inserted on first start (ON CONFLICT DO NOTHING by slug),
  * so edits made in the admin panel are never overwritten.
  */
+/**
+ * Order templates appear in (sort_order). Interleaved across life areas so a newcomer
+ * immediately sees the app is for everyone — trading is one area among many, not the headline.
+ */
+export const TEMPLATE_ORDER = [
+  'workout', 'meditate', 'read', 'no-smoking', 'daily-budget', 'water', 'journal', 'deep-work',
+  'steps', 'social-media-limit', 'save-daily', 'wake-early', 'gratitude', 'study', 'sleep',
+  'fewer-cigarettes', 'no-alcohol', 'no-impulse-buys', 'no-gambling',
+  'one-trade-a-day', 'disciplined-intraday', 'crypto-no-revenge', 'options-scalper',
+];
+
 export const DEFAULT_TEMPLATES = [
   // Trading
   { slug: 'one-trade-a-day', category: 'trading', type: 'trading', name: 'One trade a day', subtitle: 'Any market · 1 trade · stop at target', icon: 'numeric-1-circle', color: '#22C55E',

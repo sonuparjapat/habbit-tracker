@@ -8,7 +8,11 @@ import { Platform } from 'react-native';
  *   phone on the same Wi-Fi reaches your laptop's backend automatically.
  */
 function resolveBaseUrl(): string {
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, '');
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    // Accept both "https://host" and "https://host/api" — all routes live under /api
+    const base = process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
+    return base.endsWith('/api') ? base : `${base}/api`;
+  }
   const host = Constants.expoConfig?.hostUri?.split(':')[0];
   if (host && host !== 'localhost') return `http://${host}:4000/api`;
   if (Platform.OS === 'android') return 'http://10.0.2.2:4000/api';
@@ -30,12 +34,16 @@ export class ApiError extends Error {
 
 let authToken: string | null = null;
 let onUnauthorized: (() => void) | null = null;
+let onMaintenance: (() => void) | null = null;
 
 export function setAuthToken(token: string | null) {
   authToken = token;
 }
 export function setUnauthorizedHandler(fn: () => void) {
   onUnauthorized = fn;
+}
+export function setMaintenanceHandler(fn: () => void) {
+  onMaintenance = fn;
 }
 
 export async function api<T = any>(method: string, path: string, body?: unknown): Promise<T> {
@@ -50,7 +58,11 @@ export async function api<T = any>(method: string, path: string, body?: unknown)
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, `Can't reach the server at ${API_URL}. Is the backend running?`, 'NETWORK');
+    throw new ApiError(
+      0,
+      __DEV__ ? `Can't reach the server at ${API_URL}. Is the backend running?` : 'Can’t connect right now. Check your internet connection and try again.',
+      'NETWORK',
+    );
   }
 
   if (res.status === 204) return undefined as T;
@@ -58,6 +70,7 @@ export async function api<T = any>(method: string, path: string, body?: unknown)
   if (!res.ok) {
     const err = data?.error ?? {};
     if (res.status === 401 && authToken) onUnauthorized?.();
+    if (res.status === 503 && err.code === 'MAINTENANCE') onMaintenance?.();
     throw new ApiError(res.status, err.message ?? `Request failed (${res.status})`, err.code ?? 'ERROR', err.details);
   }
   return data as T;

@@ -57,7 +57,7 @@ export default function Trackers() {
     <Screen onRefresh={refetch} refreshing={isRefetching}>
       <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
         <Txt variant="title">Trackers</Txt>
-        <IconButton icon="plus" color={colors.text} size={44} onPress={() => router.push('/tracker/new')} />
+        <IconButton icon="plus" label="Add tracker" color={colors.text} size={44} onPress={() => router.push('/tracker/new')} />
       </Row>
       <Txt variant="caption" style={{ marginTop: 6 }}>Keep few. Keep them all.</Txt>
 

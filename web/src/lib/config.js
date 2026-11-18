@@ -1,7 +1,10 @@
-// Public values (inlined at build time)
+// All values are public (inlined into the site at build time)
+
+/** Backend API, including /api — e.g. https://habbit-tracker-sefr.onrender.com/api */
+const rawApi = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api').trim().replace(/\/+$/, '');
+export const API_URL = rawApi.endsWith('/api') ? rawApi : `${rawApi}/api`;
+
 export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Anchor';
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 export const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL || '';
-
-// Cookie name is also read by src/proxy.js, so it lives here (not in server.js)
-export const SESSION_COOKIE = process.env.SESSION_COOKIE_NAME || 'anchor_session';
+export const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@yourdomain.com';

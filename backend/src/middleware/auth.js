@@ -27,6 +27,20 @@ export function publicUser(row) {
   return out;
 }
 
+/**
+ * Like requireAuth, but never fails: sets req.user when a valid session is present
+ * (used by endpoints guests may call too, e.g. sending feedback).
+ */
+export async function optionalAuth(req, res, next) {
+  if (!req.headers.authorization?.startsWith('Bearer ')) return next();
+  try {
+    await requireAuth(req, res, () => {});
+  } catch {
+    req.user = undefined;
+  }
+  next();
+}
+
 export async function requireAuth(req, _res, next) {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) throw new HttpError(401, 'Not signed in', 'UNAUTHENTICATED');

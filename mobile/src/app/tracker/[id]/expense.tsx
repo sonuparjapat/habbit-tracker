@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 import { AlertCard, Button, Card, Chip, haptic, Icon, Input, Loading, Row, Screen, SectionTitle, Txt } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import { addDays, localToday, money } from '@/lib/format';
+import { addDays, money } from '@/lib/format';
 import { useCreateExpense, useTracker, useTrackerToday } from '@/lib/queries';
 import type { RuleBreak, SpendingToday } from '@/lib/types';
 import { colors, gradients } from '@/theme';
@@ -49,7 +49,7 @@ export default function AddExpense() {
 
   const submit = () =>
     create.mutate(
-      { amount: value, category: category ?? cfg.categories[0] ?? 'Other', note: note.trim() || null, spentOn: day === 'yesterday' ? addDays(localToday(), -1) : undefined },
+      { amount: value, category: category ?? cfg.categories[0] ?? 'Other', note: note.trim() || null, spentOn: day === 'yesterday' && today ? addDays(today.date, -1) : undefined },
       {
         onSuccess: (r) => {
           if (r.breaks.length) haptic.error();
