@@ -15,6 +15,9 @@ import { colors } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+// The home tabs are the base of the app: sign-in and other sheets always open on top of them.
+export const unstable_settings = { anchor: '(tabs)' };
+
 const navTheme = {
   ...DarkTheme,
   colors: { ...DarkTheme.colors, background: colors.bg, card: colors.bg, primary: colors.primary, border: colors.border },
@@ -77,11 +80,16 @@ export default function RootLayout() {
               contentStyle: { backgroundColor: colors.bg },
               headerBackButtonDisplayMode: 'minimal',
             }}>
-            <Stack.Protected guard={showOnboarding}>
+            {/*
+              Every Protected group names its redirect target explicitly. Without redirectTo,
+              Expo Router falls back to the first unguarded route in *alphabetical file order*
+              (which is the login screen) — exactly the "app opens on login" bug.
+            */}
+            <Stack.Protected guard={showOnboarding} redirectTo="/">
               <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
             </Stack.Protected>
 
-            <Stack.Protected guard={!showOnboarding}>
+            <Stack.Protected guard={!showOnboarding} redirectTo="/onboarding">
               {/* Open to everyone: guests can browse the app */}
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             </Stack.Protected>
@@ -92,8 +100,9 @@ export default function RootLayout() {
             <Stack.Screen name="forgot-password" options={{ title: 'Reset password', ...modal }} />
             <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
 
-            {/* Your data: only when signed in (guests are sent to sign-in first) */}
-            <Stack.Protected guard={!!token}>
+            {/* Your data: only when signed in. Guests reach these via goProtected() (sign-in sheet first);
+                if one is opened any other way (deep link, notification, signing out), go home — never to a login wall. */}
+            <Stack.Protected guard={!!token} redirectTo={showOnboarding ? '/onboarding' : '/'}>
               <Stack.Screen name="verify-email" options={{ title: 'Verify email', ...modal }} />
               <Stack.Screen name="account/password" options={{ title: 'Change password', ...modal }} />
               <Stack.Screen name="account/delete" options={{ title: 'Delete account', ...modal }} />

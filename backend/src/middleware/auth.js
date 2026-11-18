@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
 import { query } from '../db/pool.js';
+import { can, isAdminRole, permissionsFor, ROLE_NAMES } from '../services/roles.js';
 import { HttpError } from './errors.js';
 
 export const USER_FIELDS = `id, email, name, role, status, timezone, currency, interests,
@@ -11,9 +12,19 @@ export function signToken(user) {
   return jwt.sign({ sub: user.id, tv: user.token_version ?? 0 }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
 }
 
-/** Adds the fields the app needs to decide what to show (e.g. re-accept updated terms). */
+/**
+ * What clients receive about the signed-in user.
+ * role: 1 = super admin, 2 = admin, 3 = user. Clients should use isAdmin / permissions, not compare numbers.
+ */
 export function publicUser(row) {
-  return { ...row, termsOutdated: row.termsVersion !== config.termsVersion };
+  const out = {
+    ...row,
+    roleName: ROLE_NAMES[row.role] ?? 'user',
+    isAdmin: isAdminRole(row.role),
+    termsOutdated: row.termsVersion !== config.termsVersion,
+  };
+  if (out.isAdmin) out.permissions = permissionsFor(row.role);
+  return out;
 }
 
 export async function requireAuth(req, _res, next) {
@@ -28,11 +39,12 @@ export async function requireAuth(req, _res, next) {
   }
 
   // Update last_active_at at most every 10 minutes (cheap "active users" metric)
-  const { rows } = await query(
-    `UPDATE users SET last_active_at = now()
+  await query(
+    `UPDATE members SET last_active_at = now()
       WHERE id = $1 AND (last_active_at IS NULL OR last_active_at < now() - interval '10 minutes')`,
     [payload.sub],
-  ).then(() => query(`SELECT ${USER_FIELDS}, token_version FROM users WHERE id = $1`, [payload.sub]));
+  );
+  const { rows } = await query(`SELECT ${USER_FIELDS}, token_version FROM members WHERE id = $1`, [payload.sub]);
 
   const user = rows[0];
   if (!user || user.token_version !== (payload.tv ?? 0))
@@ -43,7 +55,14 @@ export async function requireAuth(req, _res, next) {
   next();
 }
 
+/** Super admins (1) and admins (2). */
 export function requireAdmin(req, _res, next) {
-  if (req.user?.role !== 'admin') throw new HttpError(403, 'Admins only', 'FORBIDDEN');
+  if (!isAdminRole(req.user?.role)) throw new HttpError(403, 'Admins only', 'FORBIDDEN');
   next();
 }
+
+/** Route-level permission check, e.g. requirePermission(PERMISSIONS.AUDIT_VIEW). */
+export const requirePermission = (permission) => (req, _res, next) => {
+  if (!can(req.user?.role, permission)) throw new HttpError(403, 'You don’t have permission to do this', 'FORBIDDEN');
+  next();
+};

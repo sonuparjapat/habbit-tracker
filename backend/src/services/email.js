@@ -1,18 +1,33 @@
 /**
- * Email delivery with pluggable providers, chosen by EMAIL_PROVIDER:
- *   console (dev) | ses (AWS SES v2) | smtp (any SMTP: SendGrid, Mailgun, Brevo, Zoho, ...)
+ * Email delivery with pluggable providers (see config.email.provider):
+ *   brevo   (Brevo transactional API — BREVO_API_KEY)
+ *   smtp    (MAIL_USER / MAIL_PASS — Gmail app password, Brevo SMTP, Zoho, ...)
+ *   ses     (AWS SES v2)
+ *   console (development: prints emails to the server log)
  */
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import nodemailer from 'nodemailer';
 import { config } from '../config.js';
 
 let transport;
+const { from } = config.email;
+const fromHeader = `"${from.name.replace(/"/g, '')}" <${from.email}>`;
 
 function getTransport() {
   if (transport) return transport;
-  const { provider, aws, smtp } = config.email;
+  const { provider, smtp, brevo } = config.email;
+  const aws = config.aws;
 
-  if (provider === 'ses') {
+  if (provider === 'brevo') {
+    transport = async ({ to, subject, html, text }) => {
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': brevo.apiKey, 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ sender: from, to: [{ email: to }], subject, htmlContent: html, textContent: text }),
+      });
+      if (!res.ok) throw new Error(`Brevo responded ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    };
+  } else if (provider === 'ses') {
     const client = new SESv2Client({
       region: aws.region,
       // Falls back to the default AWS credential chain (IAM role on EC2/ECS) when keys are empty
@@ -21,7 +36,7 @@ function getTransport() {
     transport = async ({ to, subject, html, text }) => {
       await client.send(
         new SendEmailCommand({
-          FromEmailAddress: config.email.from,
+          FromEmailAddress: fromHeader,
           Destination: { ToAddresses: [to] },
           Content: {
             Simple: {
@@ -39,7 +54,7 @@ function getTransport() {
       secure: smtp.secure,
       auth: smtp.user ? { user: smtp.user, pass: smtp.pass } : undefined,
     });
-    transport = ({ to, subject, html, text }) => t.sendMail({ from: config.email.from, to, subject, html, text });
+    transport = ({ to, subject, html, text }) => t.sendMail({ from: fromHeader, to, subject, html, text });
   } else {
     transport = async ({ to, subject, text }) => {
       console.log(`\n📧 [email:console] to=${to}\n   subject: ${subject}\n   ${text.replace(/\n/g, '\n   ')}\n`);

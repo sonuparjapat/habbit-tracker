@@ -6,7 +6,10 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'user' | 'admin';
+  /** 1 = super admin, 2 = admin, 3 = user */
+  role: 1 | 2 | 3;
+  roleName: 'super_admin' | 'admin' | 'user';
+  isAdmin: boolean;
   timezone: string;
   currency: string;
   interests: CategoryKey[];

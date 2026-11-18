@@ -10,7 +10,8 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "db:setup": "node src/db/migrate.js",
-    "create-admin": "node scripts/create-admin.js"
+    "create-admin": "node scripts/create-admin.js",
+    "email:test": "node scripts/test-email.js"
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1171.0",

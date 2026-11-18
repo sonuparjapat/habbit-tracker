@@ -2,9 +2,6 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { requireAdmin, requireAuth } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errors.js';
@@ -15,8 +12,6 @@ import { expensesRouter, tradesRouter } from './routes/entries.js';
 import { metaRouter } from './routes/meta.js';
 import { trackersRouter } from './routes/trackers.js';
 import { pool } from './db/pool.js';
-
-const adminDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../admin/dist');
 
 export function createApp() {
   const app = express();
@@ -43,12 +38,6 @@ export function createApp() {
   app.use('/api/trades', requireAuth, tradesRouter);
   app.use('/api/expenses', requireAuth, expensesRouter);
   app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
-
-  // Serve the built admin panel (admin/dist) at /admin when present
-  if (existsSync(adminDist)) {
-    app.use('/admin', express.static(adminDist));
-    app.get(/^\/admin(\/.*)?$/, (_req, res) => res.sendFile(path.join(adminDist, 'index.html')));
-  }
 
   app.use(notFound);
   app.use(errorHandler);
