@@ -1,15 +1,49 @@
 export type Level = 'danger' | 'warning' | 'success' | 'info';
+export type TrackerType = 'habit' | 'trading' | 'spending';
+export type CategoryKey = 'trading' | 'fitness' | 'mind' | 'money' | 'productivity' | 'quit' | 'other';
 
 export interface User {
   id: string;
   email: string;
   name: string;
+  role: 'user' | 'admin';
   timezone: string;
   currency: string;
+  interests: CategoryKey[];
+  marketingOptIn: boolean;
+  emailVerified: boolean;
+  termsOutdated: boolean;
+}
+
+export interface Category {
+  key: CategoryKey;
+  label: string;
+  icon: string;
+  color: string;
+  description: string;
+}
+
+export interface Meta {
+  appName: string;
+  termsVersion: string;
+  categories: Category[];
+  markets: { key: string; label: string }[];
+  emotions: string[];
+}
+
+export interface Template {
+  slug: string;
+  category: CategoryKey;
+  type: TrackerType;
+  name: string;
+  subtitle: string;
+  icon: string;
+  color: string;
+  config: Record<string, unknown>;
 }
 
 export interface HabitConfig {
-  kind: 'build' | 'quit';
+  kind: 'build' | 'quit' | 'limit';
   goalType: 'boolean' | 'count' | 'duration';
   target: number;
   unit: string;
@@ -19,6 +53,7 @@ export interface HabitConfig {
 }
 
 export interface TradingConfig {
+  market: string;
   instrument: string;
   capital: number;
   maxTradesPerDay: number;
@@ -34,8 +69,18 @@ export interface TradingConfig {
   why: string;
 }
 
+export interface SpendingConfig {
+  dailyLimit: number;
+  monthlyLimit: number;
+  categories: string[];
+  noSpendDays: number[];
+  reminderTime: string | null;
+  why: string;
+}
+
 interface TrackerBase {
   id: string;
+  category: CategoryKey;
   name: string;
   icon: string;
   color: string;
@@ -45,7 +90,8 @@ interface TrackerBase {
 }
 export type HabitTracker = TrackerBase & { type: 'habit'; config: HabitConfig };
 export type TradingTracker = TrackerBase & { type: 'trading'; config: TradingConfig };
-export type Tracker = HabitTracker | TradingTracker;
+export type SpendingTracker = TrackerBase & { type: 'spending'; config: SpendingConfig };
+export type Tracker = HabitTracker | TradingTracker | SpendingTracker;
 
 export interface Insight {
   level: Level;
@@ -71,6 +117,7 @@ export interface DayStatus {
 }
 
 export interface TradingToday {
+  date: string;
   status: DayStatus;
   streaks: { currentClean: number; bestClean: number; currentGreen: number; currentRed: number; activeDays: number };
   breaksToday: number;
@@ -82,19 +129,43 @@ export interface TradingToday {
 export interface HabitToday {
   date: string;
   scheduledToday: boolean;
+  loggedToday: boolean;
   completedToday: boolean;
   valueToday: number;
+  overLimit: boolean;
   currentStreak: number;
   bestStreak: number;
 }
 
+export interface SpendStatus {
+  date: string;
+  spentToday: number;
+  spentMonth: number;
+  dailyLimit: number;
+  monthlyLimit: number;
+  leftToday: number | null;
+  leftMonth: number | null;
+  noSpendDay: boolean;
+  overDaily: boolean;
+  overMonthly: boolean;
+  messages: string[];
+}
+
+export interface SpendingToday {
+  date: string;
+  status: SpendStatus;
+  streak: number;
+  alerts: Insight[];
+}
+
 export type DashboardCard =
   | { tracker: HabitTracker; today: HabitToday }
-  | { tracker: TradingTracker; today: TradingToday };
+  | { tracker: TradingTracker; today: TradingToday }
+  | { tracker: SpendingTracker; today: SpendingToday };
 
 export interface Dashboard {
   date: string;
-  user: { name: string; currency: string };
+  user: { name: string; currency: string; emailVerified: boolean };
   summary: { habitsDue: number; habitsDone: number; ruleBreaksToday: number; dayScore: number };
   cards: DashboardCard[];
 }
@@ -103,14 +174,14 @@ export interface RuleBreak {
   rule: string;
   label?: string;
   description: string;
-  reason: string | null;
+  reason?: string | null;
 }
 
 export interface Trade {
   id: string;
   tradeDate: string;
   tradedAt: string;
-  instrument: string;
+  instrument: string | null;
   direction: 'long' | 'short' | null;
   quantity: number | null;
   entryPrice: number | null;
@@ -123,6 +194,16 @@ export interface Trade {
   setup: string | null;
   followedPlan: boolean;
   checklistDone: string[];
+  note: string | null;
+  isRuleBreak: boolean;
+  breaks: RuleBreak[];
+}
+
+export interface Expense {
+  id: string;
+  spentOn: string;
+  amount: number;
+  category: string;
   note: string | null;
   isRuleBreak: boolean;
   breaks: RuleBreak[];
@@ -161,15 +242,7 @@ export interface TradingStats {
     breakdown: { rule: string; label: string; count: number }[];
     afterLockPnl: { afterTarget: number; overtrading: number; revenge: number };
   };
-  daily: {
-    date: string;
-    pnl: number;
-    trades: number;
-    breaks: number;
-    score: number;
-    cumulative: number;
-    disciplinedCumulative: number;
-  }[];
+  daily: { date: string; pnl: number; trades: number; breaks: number; score: number; cumulative: number; disciplinedCumulative: number }[];
   byEmotion: { emotion: string; trades: number; pnl: number; winRate: number; breaks: number }[];
   byWeekday: { weekday: string; pnl: number; trades: number; breaks: number }[];
   insights: Insight[];
@@ -183,9 +256,29 @@ export interface HabitStats {
   completedDays: number;
   scheduledDays: number;
   totalValue: number;
+  avgValue: number | null;
   avgMood: number | null;
   byWeekday: { weekday: string; rate: number | null }[];
-  series: { date: string; value: number; completed: boolean; scheduled: boolean }[];
+  series: { date: string; value: number; completed: boolean; scheduled: boolean; logged: boolean }[];
+  insights: Insight[];
+}
+
+export interface SpendingStats {
+  range: { from: string; to: string };
+  summary: {
+    total: number;
+    count: number;
+    avgPerDay: number;
+    projectedMonth: number | null;
+    underDays: number;
+    overDays: number;
+    noSpendDaysKept: number;
+    noSpendDaysTotal: number;
+  };
+  discipline: { ruleBreaks: number; breakdown: { rule: string; label: string; count: number }[] };
+  daily: { date: string; amount: number; over: boolean }[];
+  byCategory: { category: string; amount: number; count: number; share: number }[];
+  insights: Insight[];
 }
 
 export interface Entry {
@@ -211,5 +304,4 @@ export const EMOTIONS = [
   { key: 'frustrated', label: 'Frustrated', emoji: '😣', risky: true },
   { key: 'satisfied', label: 'Satisfied', emoji: '😊', risky: false },
 ] as const;
-export type EmotionKey = (typeof EMOTIONS)[number]['key'];
 export const emotionOf = (key: string | null | undefined) => EMOTIONS.find((e) => e.key === key);

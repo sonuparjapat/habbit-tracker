@@ -7,7 +7,7 @@ import { useTracker } from '@/lib/queries';
 export default function TrackerReport() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: tracker } = useTracker(id);
-  const currency = useAuth((s) => s.user?.currency ?? 'INR');
+  const currency = useAuth((s) => s.user?.currency ?? 'USD');
   if (!tracker) return <Loading />;
   return (
     <Screen edges={['bottom']}>

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { money, pnlColor, shortDate } from '@/lib/format';
 import { useStats, type Period } from '@/lib/queries';
-import { emotionOf, type HabitStats, type Tracker, type TradingStats } from '@/lib/types';
+import { emotionOf, type HabitStats, type SpendingStats, type SpendingTracker, type Tracker, type TradingStats } from '@/lib/types';
 import { colors } from '@/theme';
 import { BarList, CalendarGrid, EquityChart, PnlBars, pnlCellColor } from './charts';
 import { AlertCard, Card, ErrorView, Loading, Ring, Row, scoreColor, SectionTitle, Segmented, Stat, Txt } from './ui';
@@ -23,6 +23,8 @@ export function Report({ tracker, currency }: { tracker: Tracker; currency: stri
       <View style={{ marginTop: 16 }}>
         {tracker.type === 'trading' ? (
           <TradingReport trackerId={tracker.id} period={period} currency={currency} />
+        ) : tracker.type === 'spending' ? (
+          <SpendingReport tracker={tracker} period={period} currency={currency} />
         ) : (
           <HabitReport tracker={tracker} period={period} />
         )}
@@ -183,6 +185,97 @@ function TradingReport({ trackerId, period, currency }: { trackerId: string; per
   );
 }
 
+function SpendingReport({ tracker, period, currency }: { tracker: SpendingTracker; period: Period; currency: string }) {
+  const { data, isLoading, error, refetch } = useStats<SpendingStats>(tracker.id, period);
+  if (isLoading) return <Loading />;
+  if (error || !data) return <ErrorView error={error} onRetry={refetch} />;
+  const s = data.summary;
+  const cfg = tracker.config;
+  const m = (n: number) => money(n, currency);
+  const byDay = new Map(data.daily.map((d) => [d.date, d]));
+  const maxDay = Math.max(1, ...data.daily.map((d) => d.amount));
+  const limitShare = cfg.monthlyLimit && period === 'month' ? s.total / cfg.monthlyLimit : null;
+
+  return (
+    <View>
+      <Card>
+        <Row gap={16}>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Txt variant="label">Spent</Txt>
+            <Txt variant="hero" style={{ fontSize: 34 }} color={limitShare !== null && limitShare > 1 ? colors.red : colors.text}>{m(s.total)}</Txt>
+            <Txt variant="caption">{s.count} expenses · {m(s.avgPerDay)}/day</Txt>
+          </View>
+          {limitShare !== null ? (
+            <Ring value={Math.min(1, limitShare)} size={88} stroke={9} color={limitShare > 1 ? colors.red : limitShare > 0.8 ? colors.amber : colors.green}>
+              <Txt variant="h3">{Math.round(limitShare * 100)}%</Txt>
+              <Txt variant="caption" style={{ fontSize: 10 }}>of budget</Txt>
+            </Ring>
+          ) : null}
+        </Row>
+        <Row style={{ marginTop: 18 }}>
+          {cfg.dailyLimit ? <Stat label="Days under" value={String(s.underDays)} color={colors.green} /> : null}
+          {cfg.dailyLimit ? <Stat label="Days over" value={String(s.overDays)} color={s.overDays ? colors.red : undefined} /> : null}
+          {s.projectedMonth !== null ? <Stat label="Month projection" value={m(s.projectedMonth)} color={cfg.monthlyLimit && s.projectedMonth > cfg.monthlyLimit ? colors.red : undefined} /> : null}
+        </Row>
+      </Card>
+
+      {data.insights.length ? (
+        <>
+          <SectionTitle>What your data says</SectionTitle>
+          <View style={{ gap: 10 }}>
+            {data.insights.map((i, idx) => (
+              <AlertCard key={idx} alert={i} />
+            ))}
+          </View>
+        </>
+      ) : null}
+
+      {data.daily.length ? (
+        <>
+          <SectionTitle>Daily spending</SectionTitle>
+          <Card>
+            <PnlBars data={data.daily.map((d) => ({ label: d.date, value: -d.amount, flagged: d.over }))} />
+            <Row style={{ justifyContent: 'space-between', marginTop: 10 }}>
+              <Txt variant="caption">{shortDate(data.range.from)}</Txt>
+              {cfg.dailyLimit ? <Txt variant="caption">Outlined = over daily limit</Txt> : null}
+              <Txt variant="caption">{shortDate(data.range.to)}</Txt>
+            </Row>
+          </Card>
+        </>
+      ) : null}
+
+      {data.daily.length && period !== 'year' ? (
+        <>
+          <SectionTitle>Calendar</SectionTitle>
+          <Card>
+            <CalendarGrid
+              from={data.range.from}
+              to={data.range.to}
+              cell={(date) => {
+                const d = byDay.get(date);
+                if (!d || d.amount === 0) return cfg.noSpendDays.length && d ? { color: colors.green + '55' } : null;
+                return { color: d.over ? colors.red + 'CC' : colors.blue + Math.round((0.25 + 0.6 * (d.amount / maxDay)) * 255).toString(16).padStart(2, '0') };
+              }}
+            />
+          </Card>
+        </>
+      ) : null}
+
+      {data.byCategory.length ? (
+        <>
+          <SectionTitle>Where it went</SectionTitle>
+          <Card>
+            <BarList
+              color={tracker.color}
+              items={data.byCategory.map((c) => ({ label: `${c.category} · ${c.count}`, value: c.amount, display: `${m(c.amount)} · ${c.share}%` }))}
+            />
+          </Card>
+        </>
+      ) : null}
+    </View>
+  );
+}
+
 function HabitReport({ tracker, period }: { tracker: Tracker; period: Period }) {
   const { data, isLoading, error, refetch } = useStats<HabitStats>(tracker.id, period);
   if (isLoading) return <Loading />;
@@ -225,11 +318,23 @@ function HabitReport({ tracker, period }: { tracker: Tracker; period: Period }) 
                 const x = series.get(date);
                 if (!x) return null;
                 if (x.completed) return { color: tracker.color };
+                if (x.logged && tracker.type === 'habit' && tracker.config.kind === 'limit') return { color: colors.red + 'AA' };
                 if (!x.scheduled) return { color: 'transparent' };
                 return null;
               }}
             />
           </Card>
+        </>
+      ) : null}
+
+      {data.insights.length ? (
+        <>
+          <SectionTitle>What your data says</SectionTitle>
+          <View style={{ gap: 10 }}>
+            {data.insights.map((i, idx) => (
+              <AlertCard key={idx} alert={i} />
+            ))}
+          </View>
         </>
       ) : null}
 

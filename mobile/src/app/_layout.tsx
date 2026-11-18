@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
-import { DarkTheme, router, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, router, Stack, ThemeProvider, type Href } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -8,6 +8,7 @@ import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { scheduleReminders } from '@/lib/notifications';
+import { usePrefs } from '@/lib/prefs';
 import { useTrackers } from '@/lib/queries';
 import { queryClient } from '@/lib/queryClient';
 import { colors } from '@/theme';
@@ -19,37 +20,47 @@ const navTheme = {
   colors: { ...DarkTheme.colors, background: colors.bg, card: colors.bg, primary: colors.primary, border: colors.border },
 };
 
-/** Keeps local reminders in sync with the user's trackers. */
+/** Keeps local reminders in sync with the user's trackers (only if the user opted in). */
 function ReminderSync() {
   const { data } = useTrackers();
-  const currency = useAuth((s) => s.user?.currency ?? 'INR');
+  const currency = useAuth((s) => s.user?.currency ?? 'USD');
+  const consent = usePrefs((s) => s.remindersConsent);
   useEffect(() => {
-    if (data) void scheduleReminders(data, currency);
-  }, [data, currency]);
+    if (data && consent) void scheduleReminders(data, currency);
+  }, [data, currency, consent]);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
     const sub = Notifications.addNotificationResponseReceivedListener((res) => {
       const url = res.notification.request.content.data?.url;
-      if (typeof url === 'string') router.push(url as any);
+      if (typeof url === 'string') router.push(url as Href);
     });
     return () => sub.remove();
   }, []);
   return null;
 }
 
+const modal = { presentation: 'modal' as const };
+
 export default function RootLayout() {
   const { ready, token, hydrate } = useAuth();
+  const prefs = usePrefs();
 
   useEffect(() => {
     void hydrate();
-  }, [hydrate]);
+    void prefs.load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  const loaded = ready && prefs.loaded;
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => {});
-  }, [ready]);
+    if (loaded) SplashScreen.hideAsync().catch(() => {});
+  }, [loaded]);
 
-  if (!ready) return null;
+  if (!loaded) return null;
+
+  // First launch on this device (and not signed in): welcome, interests, permissions
+  const showOnboarding = !prefs.onboarded && !token;
 
   return (
     <SafeAreaProvider>
@@ -66,18 +77,32 @@ export default function RootLayout() {
               contentStyle: { backgroundColor: colors.bg },
               headerBackButtonDisplayMode: 'minimal',
             }}>
-            {/* Open to everyone: guests can browse the app and see what it does */}
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="register" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Protected guard={showOnboarding}>
+              <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
+            </Stack.Protected>
 
-            {/* Your data: only reachable when signed in (guests are sent to sign-in first) */}
+            <Stack.Protected guard={!showOnboarding}>
+              {/* Open to everyone: guests can browse the app */}
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack.Protected>
+
+            {/* Always reachable */}
+            <Stack.Screen name="login" options={{ headerShown: false, ...modal }} />
+            <Stack.Screen name="register" options={{ headerShown: false, ...modal }} />
+            <Stack.Screen name="forgot-password" options={{ title: 'Reset password', ...modal }} />
+            <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
+
+            {/* Your data: only when signed in (guests are sent to sign-in first) */}
             <Stack.Protected guard={!!token}>
-              <Stack.Screen name="tracker/new" options={{ title: 'New tracker', presentation: 'modal' }} />
+              <Stack.Screen name="verify-email" options={{ title: 'Verify email', ...modal }} />
+              <Stack.Screen name="account/password" options={{ title: 'Change password', ...modal }} />
+              <Stack.Screen name="account/delete" options={{ title: 'Delete account', ...modal }} />
+              <Stack.Screen name="tracker/new" options={{ title: 'New tracker', ...modal }} />
               <Stack.Screen name="tracker/[id]/index" options={{ title: '' }} />
-              <Stack.Screen name="tracker/[id]/edit" options={{ title: 'Edit tracker', presentation: 'modal' }} />
-              <Stack.Screen name="tracker/[id]/trade" options={{ title: 'Log trade', presentation: 'modal' }} />
-              <Stack.Screen name="tracker/[id]/journal" options={{ title: 'Daily journal', presentation: 'modal' }} />
+              <Stack.Screen name="tracker/[id]/edit" options={{ title: 'Edit tracker', ...modal }} />
+              <Stack.Screen name="tracker/[id]/trade" options={{ title: 'Log trade', ...modal }} />
+              <Stack.Screen name="tracker/[id]/expense" options={{ title: 'Add expense', ...modal }} />
+              <Stack.Screen name="tracker/[id]/journal" options={{ title: 'Daily journal', ...modal }} />
               <Stack.Screen name="tracker/[id]/report" options={{ title: 'Report' }} />
               <Stack.Screen name="tracker/[id]/breaks" options={{ title: 'Rule breaks' }} />
             </Stack.Protected>

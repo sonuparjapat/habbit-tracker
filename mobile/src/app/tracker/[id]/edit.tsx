@@ -34,11 +34,11 @@ export default function EditTracker() {
   return (
     <Screen edges={['bottom']}>
       <TrackerForm
-        initial={{ type: tracker.type, name: tracker.name, icon: tracker.icon, color: tracker.color, config: tracker.config }}
+        initial={{ type: tracker.type, category: tracker.category, name: tracker.name, icon: tracker.icon, color: tracker.color, config: tracker.config }}
         submitLabel="Save changes"
         submitting={update.isPending}
         error={update.error?.message}
-        onSubmit={(d) => update.mutate({ name: d.name, icon: d.icon, color: d.color, config: d.config }, { onSuccess: () => router.back() })}
+        onSubmit={(d) => update.mutate({ name: d.name, category: d.category, icon: d.icon, color: d.color, config: d.config }, { onSuccess: () => router.back() })}
       />
       <View style={{ gap: 10, marginTop: 28 }}>
         <Button

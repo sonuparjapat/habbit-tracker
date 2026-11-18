@@ -6,21 +6,31 @@ import type {
   Dashboard,
   DayStatus,
   Entry,
+  Expense,
   HabitStats,
+  HabitToday,
   RuleBreak,
+  SpendingStats,
+  SpendingToday,
+  Template,
   Trade,
   Tracker,
+  TrackerType,
   TradingStats,
+  TradingToday,
 } from './types';
 
 export type Period = 'week' | 'month' | '90d' | 'year' | 'all';
 
 export const keys = {
   dashboard: ['dashboard'] as const,
+  templates: ['templates'] as const,
   trackers: ['trackers'] as const,
   tracker: (id: string) => ['tracker', id] as const,
+  today: (id: string) => ['tracker', id, 'today'] as const,
   stats: (id: string, period: string) => ['tracker', id, 'stats', period] as const,
   trades: (id: string, period: string) => ['tracker', id, 'trades', period] as const,
+  expenses: (id: string, period: string) => ['tracker', id, 'expenses', period] as const,
   breaks: (id: string, period: string) => ['tracker', id, 'breaks', period] as const,
   entries: (id: string, period: string) => ['tracker', id, 'entries', period] as const,
   status: (id: string) => ['tracker', id, 'status'] as const,
@@ -32,6 +42,17 @@ export function invalidateAll() {
 }
 
 const useSignedIn = () => useAuth((s) => !!s.token);
+
+/* --------------------------------- Public --------------------------------- */
+
+export const useTemplates = () =>
+  useQuery({
+    queryKey: keys.templates,
+    queryFn: async () => (await get<{ templates: Template[] }>('/templates')).templates,
+    staleTime: 10 * 60_000,
+  });
+
+/* --------------------------------- Reads ---------------------------------- */
 
 export const useDashboard = () =>
   useQuery({ queryKey: keys.dashboard, queryFn: () => get<Dashboard>('/dashboard'), enabled: useSignedIn() });
@@ -47,14 +68,18 @@ export const useTracker = (id: string) =>
   useQuery({
     queryKey: keys.tracker(id),
     queryFn: async () => (await get<{ tracker: Tracker }>(`/trackers/${id}`)).tracker,
-    enabled: !!id,
+    enabled: useSignedIn() && !!id,
   });
 
-export function useStats<T extends TradingStats | HabitStats>(id: string, period: Period, enabled = true) {
+export function useTrackerToday<T extends TradingToday | HabitToday | SpendingToday>(id: string) {
+  return useQuery({ queryKey: keys.today(id), queryFn: () => get<T>(`/trackers/${id}/today`), enabled: useSignedIn() && !!id });
+}
+
+export function useStats<T extends TradingStats | HabitStats | SpendingStats>(id: string, period: Period) {
   return useQuery({
     queryKey: keys.stats(id, period),
     queryFn: () => get<T>(`/trackers/${id}/stats?period=${period}`),
-    enabled: !!id && enabled,
+    enabled: !!id,
   });
 }
 
@@ -65,15 +90,19 @@ export const useTrades = (id: string, period: Period = '90d') =>
     enabled: !!id,
   });
 
+export const useExpenses = (id: string, period: Period = 'month') =>
+  useQuery({
+    queryKey: keys.expenses(id, period),
+    queryFn: async () => (await get<{ expenses: Expense[] }>(`/trackers/${id}/expenses?period=${period}`)).expenses,
+    enabled: !!id,
+  });
+
 export const useRuleBreaks = (id: string, period: Period = 'all') =>
   useQuery({
     queryKey: keys.breaks(id, period),
     queryFn: async () =>
-      (
-        await get<{ breaks: (RuleBreak & { id: string; date: string; tradeNet: number | null; label: string })[] }>(
-          `/trackers/${id}/rule-breaks?period=${period}`,
-        )
-      ).breaks,
+      (await get<{ breaks: (RuleBreak & { id: string; date: string; amount: number | null; label: string })[] }>(`/trackers/${id}/rule-breaks?period=${period}`))
+        .breaks,
     enabled: !!id,
   });
 
@@ -92,6 +121,8 @@ export const useDayStatus = (id: string) =>
     staleTime: 0,
   });
 
+/* --------------------------------- Writes --------------------------------- */
+
 export function useSaveEntry(trackerId: string) {
   return useMutation({
     mutationFn: ({ date, ...body }: { date: string } & Partial<Omit<Entry, 'date'>>) =>
@@ -100,18 +131,27 @@ export function useSaveEntry(trackerId: string) {
   });
 }
 
+export function useDeleteEntry(trackerId: string) {
+  return useMutation({ mutationFn: (date: string) => del(`/trackers/${trackerId}/entries/${date}`), onSuccess: invalidateAll });
+}
+
+export interface TrackerInput {
+  type: TrackerType;
+  category: string;
+  name: string;
+  icon?: string;
+  color?: string;
+  templateSlug?: string;
+  config: object;
+}
+
 export function useCreateTracker() {
-  return useMutation({
-    mutationFn: (body: { type: Tracker['type']; name: string; icon?: string; color?: string; config: object }) =>
-      post<{ tracker: Tracker }>('/trackers', body),
-    onSuccess: invalidateAll,
-  });
+  return useMutation({ mutationFn: (body: TrackerInput) => post<{ tracker: Tracker }>('/trackers', body), onSuccess: invalidateAll });
 }
 
 export function useUpdateTracker(id: string) {
   return useMutation({
-    mutationFn: (body: Partial<Pick<Tracker, 'name' | 'icon' | 'color' | 'archived'>> & { config?: object }) =>
-      patch<{ tracker: Tracker }>(`/trackers/${id}`, body),
+    mutationFn: (body: Partial<Omit<TrackerInput, 'type'>> & { archived?: boolean }) => patch<{ tracker: Tracker }>(`/trackers/${id}`, body),
     onSuccess: invalidateAll,
   });
 }
@@ -122,7 +162,7 @@ export function useDeleteTracker() {
 
 export interface NewTrade {
   tradeDate?: string;
-  instrument?: string;
+  instrument?: string | null;
   direction?: 'long' | 'short' | null;
   quantity?: number | null;
   entryPrice?: number | null;
@@ -141,12 +181,23 @@ export interface NewTrade {
 
 export function useCreateTrade(trackerId: string) {
   return useMutation({
-    mutationFn: (body: NewTrade) =>
-      post<{ tradeId: string; breaks: RuleBreak[]; status: DayStatus }>(`/trackers/${trackerId}/trades`, body),
+    mutationFn: (body: NewTrade) => post<{ tradeId: string; breaks: RuleBreak[]; status: DayStatus }>(`/trackers/${trackerId}/trades`, body),
     onSuccess: invalidateAll,
   });
 }
 
 export function useDeleteTrade() {
   return useMutation({ mutationFn: (id: string) => del(`/trades/${id}`), onSuccess: invalidateAll });
+}
+
+export function useCreateExpense(trackerId: string) {
+  return useMutation({
+    mutationFn: (body: { spentOn?: string; amount: number; category: string; note?: string | null; breakReason?: string }) =>
+      post<{ expenseId: string; breaks: RuleBreak[] }>(`/trackers/${trackerId}/expenses`, body),
+    onSuccess: invalidateAll,
+  });
+}
+
+export function useDeleteExpense() {
+  return useMutation({ mutationFn: (id: string) => del(`/expenses/${id}`), onSuccess: invalidateAll });
 }

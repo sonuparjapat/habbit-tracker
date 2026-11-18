@@ -1,25 +1,89 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, Platform, Pressable, View } from 'react-native';
-import { HabitCard, TradingCard } from '@/components/cards';
+import { HabitCard, SpendingCard, TradingCard } from '@/components/cards';
 import { Report } from '@/components/Report';
 import { AlertCard, Button, Card, ErrorView, Icon, Loading, Row, Screen, SectionTitle, Txt } from '@/components/ui';
-import { get } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { money, pnlColor, shortDate, WEEKDAY_LETTERS } from '@/lib/format';
-import { useDeleteTrade, useTracker, useTrades } from '@/lib/queries';
-import { emotionOf, type HabitToday, type Trade, type TradingToday, type TradingTracker } from '@/lib/types';
+import { useDeleteExpense, useDeleteTrade, useExpenses, useTracker, useTrackerToday, useTrades } from '@/lib/queries';
+import {
+  emotionOf,
+  type Expense,
+  type HabitToday,
+  type SpendingToday,
+  type SpendingTracker,
+  type Trade,
+  type TradingToday,
+  type TradingTracker,
+} from '@/lib/types';
 import { colors } from '@/theme';
-import { useQuery } from '@tanstack/react-query';
+
+function confirmDelete(title: string, msg: string, onYes: () => void) {
+  if (Platform.OS === 'web') {
+    if (globalThis.confirm?.(msg)) onYes();
+  } else
+    Alert.alert(title, msg, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: onYes },
+    ]);
+}
+
+function SpendingDetail({ tracker, today, currency }: { tracker: SpendingTracker; today?: SpendingToday; currency: string }) {
+  const { data: expenses } = useExpenses(tracker.id, '90d');
+  const del = useDeleteExpense();
+  const remove = (e: Expense) =>
+    confirmDelete('Delete expense?', `Delete ${money(e.amount, currency)} (${e.category}) from ${shortDate(e.spentOn)}?`, () => del.mutate(e.id));
+
+  return (
+    <View>
+      {today?.alerts.length ? (
+        <View style={{ gap: 10, marginTop: 16 }}>
+          {today.alerts.map((a, i) => (
+            <AlertCard key={i} alert={a} />
+          ))}
+        </View>
+      ) : null}
+      {tracker.config.why ? (
+        <Card style={{ marginTop: 16 }}>
+          <Txt variant="label">Why</Txt>
+          <Txt style={{ marginTop: 6, fontStyle: 'italic' }}>“{tracker.config.why}”</Txt>
+        </Card>
+      ) : null}
+
+      <SectionTitle>Report</SectionTitle>
+      <Report tracker={tracker} currency={currency} />
+
+      <SectionTitle>Recent expenses</SectionTitle>
+      {expenses?.length === 0 ? <Txt variant="caption">Nothing logged in the last 90 days.</Txt> : null}
+      <View style={{ gap: 8 }}>
+        {expenses?.slice(0, 60).map((e) => (
+          <Pressable key={e.id} onLongPress={() => remove(e)}>
+            <Card padded={false} style={{ padding: 16 }} accent={e.isRuleBreak ? colors.red + '55' : undefined}>
+              <Row style={{ justifyContent: 'space-between' }} gap={12}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Txt variant="h3">{e.category}</Txt>
+                  <Txt variant="caption" numberOfLines={1}>
+                    {shortDate(e.spentOn)}
+                    {e.note ? ` · ${e.note}` : ''}
+                    {e.isRuleBreak ? ` · ⚠️ ${e.breaks.map((b) => b.label).join(', ')}` : ''}
+                  </Txt>
+                </View>
+                <Txt variant="mono">{money(e.amount, currency)}</Txt>
+              </Row>
+            </Card>
+          </Pressable>
+        ))}
+      </View>
+      {expenses?.length ? <Txt variant="caption" center style={{ marginTop: 12 }}>Long-press an expense to delete it</Txt> : null}
+    </View>
+  );
+}
 
 export default function TrackerDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: tracker, isLoading, error, refetch } = useTracker(id);
-  const today = useQuery({
-    queryKey: ['tracker', id, 'today'],
-    queryFn: () => get<TradingToday | HabitToday>(`/trackers/${id}/today`),
-    enabled: !!id,
-  });
-  const currency = useAuth((s) => s.user?.currency ?? 'INR');
+  const today = useTrackerToday<TradingToday | HabitToday | SpendingToday>(id);
+  const currency = useAuth((s) => s.user?.currency ?? 'USD');
 
   if (isLoading) return <Loading />;
   if (error || !tracker) return <Screen><ErrorView error={error} onRetry={refetch} /></Screen>;
@@ -39,6 +103,8 @@ export default function TrackerDetail() {
       {today.data ? (
         tracker.type === 'trading' ? (
           <TradingCard tracker={tracker} today={today.data as TradingToday} currency={currency} link={false} />
+        ) : tracker.type === 'spending' ? (
+          <SpendingCard tracker={tracker} today={today.data as SpendingToday} currency={currency} link={false} />
         ) : (
           <HabitCard tracker={tracker} today={today.data as HabitToday} date={(today.data as HabitToday).date} link={false} />
         )
@@ -46,6 +112,8 @@ export default function TrackerDetail() {
 
       {tracker.type === 'trading' ? (
         <TradingDetail tracker={tracker} today={today.data as TradingToday | undefined} currency={currency} />
+      ) : tracker.type === 'spending' ? (
+        <SpendingDetail tracker={tracker} today={today.data as SpendingToday | undefined} currency={currency} />
       ) : (
         <View style={{ marginTop: 20 }}>
           {tracker.config.why ? (
@@ -66,16 +134,12 @@ function TradingDetail({ tracker, today, currency }: { tracker: TradingTracker; 
   const { data: trades } = useTrades(tracker.id, '90d');
   const del = useDeleteTrade();
 
-  const confirmDelete = (t: Trade) => {
-    const msg = `Delete this ${money(t.net, currency, { sign: true })} trade from ${shortDate(t.tradeDate)}? Rule breaks for that day are recalculated.`;
-    if (Platform.OS === 'web') {
-      if (globalThis.confirm?.(msg)) del.mutate(t.id);
-    } else
-      Alert.alert('Delete trade?', msg, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => del.mutate(t.id) },
-      ]);
-  };
+  const removeTrade = (t: Trade) =>
+    confirmDelete(
+      'Delete trade?',
+      `Delete this ${money(t.net, currency, { sign: true })} trade from ${shortDate(t.tradeDate)}? Rule breaks for that day are recalculated.`,
+      () => del.mutate(t.id),
+    );
 
   return (
     <View>
@@ -112,8 +176,8 @@ function TradingDetail({ tracker, today, currency }: { tracker: TradingTracker; 
       <SectionTitle action="Edit" onAction={() => router.push(`/tracker/${tracker.id}/edit`)}>Your rules</SectionTitle>
       <Card style={{ gap: 10 }}>
         <RuleLine icon="numeric-1-circle" text={`Max ${c.maxTradesPerDay} trade${c.maxTradesPerDay > 1 ? 's' : ''} per day`} />
-        <RuleLine icon="flag-checkered" text={`Target ${money(c.dailyProfitTarget, currency)}${c.stopAfterTarget ? ' — then stop' : ''}`} />
-        <RuleLine icon="hand-back-left" text={`Max daily loss ${money(c.dailyMaxLoss, currency)}`} />
+        {c.dailyProfitTarget ? <RuleLine icon="flag-checkered" text={`Target ${money(c.dailyProfitTarget, currency)}${c.stopAfterTarget ? ' — then stop' : ''}`} /> : null}
+        {c.dailyMaxLoss ? <RuleLine icon="hand-back-left" text={`Max daily loss ${money(c.dailyMaxLoss, currency)}`} /> : null}
         <RuleLine icon="calendar-week" text={`Trading days: ${c.tradingDays.map((d) => WEEKDAY_LETTERS[d]).join(' ')}`} />
         {c.customRules.map((r) => (
           <RuleLine key={r} icon="check-decagram" text={r} />
@@ -126,7 +190,7 @@ function TradingDetail({ tracker, today, currency }: { tracker: TradingTracker; 
         {trades?.slice(0, 50).map((t) => {
           const emo = emotionOf(t.emotionBefore);
           return (
-            <Pressable key={t.id} onLongPress={() => confirmDelete(t)}>
+            <Pressable key={t.id} onLongPress={() => removeTrade(t)}>
               <Card padded={false} style={{ padding: 14 }} accent={t.isRuleBreak ? colors.red + '66' : undefined}>
                 <Row style={{ justifyContent: 'space-between' }}>
                   <View style={{ gap: 2, flex: 1 }}>

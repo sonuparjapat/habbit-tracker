@@ -3,7 +3,8 @@ export const colors = {
   surface: '#12151D',
   surfaceAlt: '#1A1F2B',
   surfaceHigh: '#232A39',
-  border: '#252C3B',
+  border: '#1E2431',
+  borderStrong: '#2A3243',
   text: '#F4F6FB',
   textMuted: '#8B94A7',
   textDim: '#5D6577',
@@ -26,8 +27,8 @@ export const gradients = {
   card: ['#171B26', '#11141B'] as const,
 };
 
-export const radius = { sm: 10, md: 16, lg: 22, xl: 28, pill: 999 } as const;
-export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
+export const radius = { sm: 12, md: 16, lg: 24, xl: 30, pill: 999 } as const;
+export const space = { xs: 4, sm: 8, md: 12, lg: 20, xl: 28, xxl: 40 } as const;
 
 export const levelColor = {
   danger: { fg: colors.red, bg: colors.redSoft },

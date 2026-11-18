@@ -1,18 +1,23 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { WEEKDAY_LETTERS } from '@/lib/format';
-import { ICONS } from '@/lib/templates';
-import type { HabitConfig, TradingConfig, Tracker } from '@/lib/types';
-import { colors, TRACKER_COLORS } from '@/theme';
+import { useAuth } from '@/lib/auth';
+import { CATEGORIES, ICONS, MARKETS } from '@/lib/catalog';
+import { money, WEEKDAY_LETTERS } from '@/lib/format';
+import type { CategoryKey, HabitConfig, SpendingConfig, TrackerType, TradingConfig } from '@/lib/types';
+import { colors, radius, TRACKER_COLORS } from '@/theme';
 import { Button, Card, Chip, haptic, Icon, Input, Row, SectionTitle, Segmented, Stepper, ToggleRow, Txt } from './ui';
 
 export interface TrackerDraft {
-  type: Tracker['type'];
+  type: TrackerType;
+  category: CategoryKey;
   name: string;
   icon: string;
   color: string;
-  config: HabitConfig | TradingConfig;
+  templateSlug?: string;
+  config: HabitConfig | TradingConfig | SpendingConfig;
 }
+
+type AnyConfig = Partial<HabitConfig & TradingConfig & SpendingConfig>;
 
 const num = (s: string) => {
   const n = Number(s.replace(/[^0-9.]/g, ''));
@@ -20,9 +25,11 @@ const num = (s: string) => {
 };
 const validTime = (s: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
 
-function DaysPicker({ value, onChange }: { value: number[]; onChange: (v: number[]) => void }) {
+/* --------------------------------- Pieces --------------------------------- */
+
+function DaysPicker({ value, onChange, allowEmpty = false, color = colors.primary }: { value: number[]; onChange: (v: number[]) => void; allowEmpty?: boolean; color?: string }) {
   return (
-    <Row gap={6} style={{ justifyContent: 'space-between' }}>
+    <Row style={{ justifyContent: 'space-between' }}>
       {WEEKDAY_LETTERS.map((l, d) => {
         const on = value.includes(d);
         return (
@@ -31,17 +38,17 @@ function DaysPicker({ value, onChange }: { value: number[]; onChange: (v: number
             onPress={() => {
               haptic.tap();
               const next = on ? value.filter((x) => x !== d) : [...value, d].sort();
-              if (next.length) onChange(next);
+              if (next.length || allowEmpty) onChange(next);
             }}
             style={{
-              width: 40,
-              height: 40,
+              width: 42,
+              height: 42,
               borderRadius: 14,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: on ? colors.primary : colors.surfaceAlt,
+              backgroundColor: on ? color : colors.surfaceAlt,
               borderWidth: 1,
-              borderColor: on ? colors.primary : colors.border,
+              borderColor: on ? color : colors.border,
             }}>
             <Txt variant="h3" color={on ? colors.text : colors.textMuted}>{l}</Txt>
           </Pressable>
@@ -55,16 +62,16 @@ function ListEditor({ items, onChange, placeholder }: { items: string[]; onChang
   const [draft, setDraft] = useState('');
   const add = () => {
     const v = draft.trim();
-    if (!v) return;
+    if (!v || items.includes(v)) return;
     onChange([...items, v]);
     setDraft('');
   };
   return (
     <View style={{ gap: 8 }}>
       {items.map((it, i) => (
-        <Row key={`${i}-${it}`} gap={10} style={{ backgroundColor: colors.surfaceAlt, borderRadius: 12, padding: 12 }}>
+        <Row key={`${i}-${it}`} gap={12} style={{ backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border }}>
           <Icon name="check-circle-outline" size={18} color={colors.primary} />
-          <Txt style={{ flex: 1 }}>{it}</Txt>
+          <Txt style={{ flex: 1, fontSize: 15 }}>{it}</Txt>
           <Pressable hitSlop={10} onPress={() => onChange(items.filter((_, j) => j !== i))}>
             <Icon name="close" size={18} color={colors.textMuted} />
           </Pressable>
@@ -86,7 +93,7 @@ function TimeField({ label, value, onChange }: { label: string; value: string | 
     <Input
       label={label}
       value={text}
-      placeholder="Off (or HH:MM, e.g. 09:00)"
+      placeholder="Off — or a time like 09:00"
       keyboardType="numbers-and-punctuation"
       maxLength={5}
       onChangeText={(t) => {
@@ -94,10 +101,25 @@ function TimeField({ label, value, onChange }: { label: string; value: string | 
         if (t === '') onChange(null);
         else if (validTime(t)) onChange(t);
       }}
-      hint={text && !validTime(text) ? 'Use 24h HH:MM' : undefined}
+      hint={text && !validTime(text) ? 'Use 24-hour HH:MM' : undefined}
     />
   );
 }
+
+function MoneyField({ label, value, onChange, hint, currency }: { label: string; value: number; onChange: (v: number) => void; hint?: string; currency: string }) {
+  return (
+    <Input
+      label={label}
+      keyboardType="numeric"
+      value={value ? String(value) : ''}
+      placeholder="0 = off"
+      onChangeText={(t) => onChange(num(t))}
+      hint={hint ?? (value ? money(value, currency) : 'Off')}
+    />
+  );
+}
+
+/* ---------------------------------- Form ---------------------------------- */
 
 export function TrackerForm({
   initial,
@@ -113,179 +135,259 @@ export function TrackerForm({
   error?: string | null;
 }) {
   const [draft, setDraft] = useState<TrackerDraft>(initial);
+  const currency = useAuth((s) => s.user?.currency ?? 'USD');
   const set = (patch: Partial<TrackerDraft>) => setDraft((d) => ({ ...d, ...patch }));
-  const setCfg = (patch: Partial<HabitConfig & TradingConfig>) => setDraft((d) => ({ ...d, config: { ...d.config, ...patch } as any }));
+  const setCfg = (patch: AnyConfig) => setDraft((d) => ({ ...d, config: { ...d.config, ...patch } as TrackerDraft['config'] }));
+  const [showLook, setShowLook] = useState(false);
 
   return (
     <View>
-      <Card style={{ gap: 16 }}>
-        <Input label="Name" value={draft.name} onChangeText={(name) => set({ name })} placeholder="e.g. Nifty — one trade a day" maxLength={60} />
-        <View style={{ gap: 8 }}>
-          <Txt variant="label">Icon</Txt>
-          <Row gap={8} style={{ flexWrap: 'wrap' }}>
-            {ICONS.map((ic) => (
-              <Pressable
-                key={ic}
-                onPress={() => set({ icon: ic })}
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 13,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: draft.icon === ic ? draft.color + '33' : colors.surfaceAlt,
-                  borderWidth: 1,
-                  borderColor: draft.icon === ic ? draft.color : colors.border,
-                }}>
-                <Icon name={ic} size={20} color={draft.icon === ic ? draft.color : colors.textMuted} />
-              </Pressable>
-            ))}
-          </Row>
-        </View>
-        <View style={{ gap: 8 }}>
-          <Txt variant="label">Color</Txt>
-          <Row gap={10}>
-            {TRACKER_COLORS.map((c) => (
-              <Pressable
-                key={c}
-                onPress={() => set({ color: c })}
-                style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c, borderWidth: 3, borderColor: draft.color === c ? colors.text : 'transparent' }}
-              />
-            ))}
-          </Row>
-        </View>
+      <Card style={{ gap: 18 }}>
+        <Row gap={14}>
+          <Pressable
+            onPress={() => setShowLook((s) => !s)}
+            style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: draft.color + '26', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={draft.icon} size={28} color={draft.color} />
+          </Pressable>
+          <View style={{ flex: 1 }}>
+            <Input value={draft.name} onChangeText={(name) => set({ name })} placeholder="Name your tracker" maxLength={60} />
+          </View>
+        </Row>
+        <Pressable onPress={() => setShowLook((s) => !s)}>
+          <Txt variant="caption" color={colors.primary} style={{ fontWeight: '600' }}>{showLook ? 'Hide icon & colour' : 'Change icon & colour'}</Txt>
+        </Pressable>
+        {showLook ? (
+          <View style={{ gap: 14 }}>
+            <Row gap={8} style={{ flexWrap: 'wrap' }}>
+              {ICONS.map((ic) => (
+                <Pressable
+                  key={ic}
+                  onPress={() => set({ icon: ic })}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 14,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: draft.icon === ic ? draft.color + '33' : colors.surfaceAlt,
+                    borderWidth: 1,
+                    borderColor: draft.icon === ic ? draft.color : 'transparent',
+                  }}>
+                  <Icon name={ic} size={20} color={draft.icon === ic ? draft.color : colors.textMuted} />
+                </Pressable>
+              ))}
+            </Row>
+            <Row gap={12} style={{ flexWrap: 'wrap' }}>
+              {TRACKER_COLORS.map((c) => (
+                <Pressable key={c} onPress={() => set({ color: c })} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c, borderWidth: 3, borderColor: draft.color === c ? colors.text : 'transparent' }} />
+              ))}
+            </Row>
+          </View>
+        ) : null}
       </Card>
 
       {draft.type === 'trading' ? (
-        <TradingFields cfg={draft.config as TradingConfig} setCfg={setCfg} />
+        <TradingFields cfg={draft.config as TradingConfig} setCfg={setCfg} currency={currency} />
+      ) : draft.type === 'spending' ? (
+        <SpendingFields cfg={draft.config as SpendingConfig} setCfg={setCfg} currency={currency} />
       ) : (
-        <HabitFields cfg={draft.config as HabitConfig} setCfg={setCfg} />
+        <HabitFields cfg={draft.config as HabitConfig} setCfg={setCfg} color={draft.color} />
       )}
 
-      {error ? <Txt color={colors.red} style={{ marginTop: 16 }}>{error}</Txt> : null}
-      <Button title={submitLabel} onPress={() => onSubmit(draft)} loading={submitting} disabled={!draft.name.trim()} style={{ marginTop: 24 }} />
+      <SectionTitle>Category</SectionTitle>
+      <Row gap={8} style={{ flexWrap: 'wrap' }}>
+        {CATEGORIES.map((c) => (
+          <Chip key={c.key} label={c.label} selected={draft.category === c.key} color={c.color} onPress={() => set({ category: c.key })} />
+        ))}
+      </Row>
+
+      {error ? (
+        <Row gap={8} style={{ backgroundColor: colors.redSoft, padding: 12, borderRadius: 12, marginTop: 20 }}>
+          <Icon name="alert-circle-outline" size={18} color={colors.red} />
+          <Txt variant="caption" color={colors.red} style={{ flex: 1 }}>{error}</Txt>
+        </Row>
+      ) : null}
+      <Button title={submitLabel} onPress={() => onSubmit(draft)} loading={submitting} disabled={!draft.name.trim()} style={{ marginTop: 28 }} />
     </View>
   );
 }
 
-function TradingFields({ cfg, setCfg }: { cfg: TradingConfig; setCfg: (p: Partial<TradingConfig>) => void }) {
+/* --------------------------------- Trading -------------------------------- */
+
+function TradingFields({ cfg, setCfg, currency }: { cfg: TradingConfig; setCfg: (p: AnyConfig) => void; currency: string }) {
   return (
     <>
-      <SectionTitle>Your rules</SectionTitle>
-      <Card style={{ gap: 16 }}>
-        <Input label="Instrument" value={cfg.instrument} onChangeText={(instrument) => setCfg({ instrument })} />
+      <SectionTitle>What do you trade?</SectionTitle>
+      <Row gap={8} style={{ flexWrap: 'wrap' }}>
+        {MARKETS.map((m) => (
+          <Chip key={m.key} label={m.label} selected={cfg.market === m.key} onPress={() => setCfg({ market: m.key })} />
+        ))}
+      </Row>
+      <View style={{ marginTop: 14 }}>
+        <Input value={cfg.instrument} onChangeText={(instrument) => setCfg({ instrument })} placeholder="Instrument (optional) — e.g. AAPL, BTC, EUR/USD" maxLength={40} />
+      </View>
+
+      <SectionTitle>Your limits</SectionTitle>
+      <Card style={{ gap: 20 }}>
         <Row style={{ justifyContent: 'space-between' }}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
             <Txt variant="h3">Max trades per day</Txt>
-            <Txt variant="caption">The single most important rule.</Txt>
+            <Txt variant="caption">The most important rule.</Txt>
           </View>
-          <Stepper value={cfg.maxTradesPerDay} min={1} onChange={(maxTradesPerDay) => setCfg({ maxTradesPerDay })} />
+          <Stepper value={cfg.maxTradesPerDay} min={1} onChange={(maxTradesPerDay) => setCfg({ maxTradesPerDay: Math.min(100, maxTradesPerDay) })} />
         </Row>
-        <Row gap={12}>
+        <Row gap={12} style={{ alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <Input
-              label="Daily target"
-              keyboardType="numeric"
-              value={String(cfg.dailyProfitTarget || '')}
-              onChangeText={(t) => setCfg({ dailyProfitTarget: num(t) })}
-            />
+            <MoneyField label="Daily profit target" value={cfg.dailyProfitTarget} onChange={(dailyProfitTarget) => setCfg({ dailyProfitTarget })} currency={currency} />
           </View>
           <View style={{ flex: 1 }}>
-            <Input
-              label="Max daily loss"
-              keyboardType="numeric"
-              value={String(cfg.dailyMaxLoss || '')}
-              onChangeText={(t) => setCfg({ dailyMaxLoss: num(t) })}
-            />
+            <MoneyField label="Max daily loss" value={cfg.dailyMaxLoss} onChange={(dailyMaxLoss) => setCfg({ dailyMaxLoss })} currency={currency} />
           </View>
         </Row>
         <ToggleRow
           label="Stop when target is hit"
-          hint="Locks the day as soon as you reach your target. This is what stops overconfidence."
+          hint="Locks your day once you reach the target — the cure for overconfidence."
           value={cfg.stopAfterTarget}
           onChange={(stopAfterTarget) => setCfg({ stopAfterTarget })}
         />
-        <View style={{ gap: 8 }}>
+        <View style={{ gap: 10 }}>
           <Txt variant="label">Trading days</Txt>
           <DaysPicker value={cfg.tradingDays} onChange={(tradingDays) => setCfg({ tradingDays })} />
         </View>
         <Row style={{ justifyContent: 'space-between' }}>
-          <View style={{ flex: 1 }}>
-            <Txt variant="h3">Cool-down before override</Txt>
-            <Txt variant="caption">Seconds you must wait before you can break a lock.</Txt>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Txt variant="h3">Pause before override</Txt>
+            <Txt variant="caption">Seconds to wait before you can break a lock.</Txt>
           </View>
           <Stepper value={cfg.cooldownSeconds} step={15} onChange={(cooldownSeconds) => setCfg({ cooldownSeconds: Math.min(900, cooldownSeconds) })} />
         </Row>
       </Card>
 
       <SectionTitle>Pre-trade checklist</SectionTitle>
-      <Txt variant="caption" style={{ marginBottom: 10 }}>You tick these before every trade. Skipping one is recorded as a rule break.</Txt>
+      <Txt variant="caption" style={{ marginBottom: 12 }}>Ticked before every trade. Skipping an item is recorded.</Txt>
       <ListEditor items={cfg.checklist} onChange={(checklist) => setCfg({ checklist })} placeholder="Add a checklist item" />
 
       <SectionTitle>Personal rules</SectionTitle>
-      <Txt variant="caption" style={{ marginBottom: 10 }}>Shown on your lock screen and pre-market reminder.</Txt>
+      <Txt variant="caption" style={{ marginBottom: 12 }}>Shown on your lock screen and reminders.</Txt>
       <ListEditor items={cfg.customRules} onChange={(customRules) => setCfg({ customRules })} placeholder="e.g. No trades in the first 15 minutes" />
 
-      <SectionTitle>Why this matters</SectionTitle>
-      <Input
-        value={cfg.why}
-        onChangeText={(why) => setCfg({ why })}
-        multiline
-        maxLength={280}
-        placeholder="e.g. I lost a month of profits in 3 days of overtrading. Never again."
-        hint="You'll see this exact sentence when you try to break a rule."
-      />
+      <WhyField value={cfg.why} onChange={(why) => setCfg({ why })} placeholder="e.g. I lost a month of profits in 3 days of overtrading. Never again." />
 
       <SectionTitle>Reminders</SectionTitle>
-      <Card style={{ gap: 14 }}>
-        <TimeField label="Pre-market rules reminder" value={cfg.preMarketReminder} onChange={(preMarketReminder) => setCfg({ preMarketReminder })} />
-        <TimeField label="End-of-day journal reminder" value={cfg.journalReminder} onChange={(journalReminder) => setCfg({ journalReminder })} />
+      <Card style={{ gap: 16 }}>
+        <TimeField label="Before you trade — read your rules" value={cfg.preMarketReminder} onChange={(preMarketReminder) => setCfg({ preMarketReminder })} />
+        <TimeField label="After you trade — journal" value={cfg.journalReminder} onChange={(journalReminder) => setCfg({ journalReminder })} />
       </Card>
     </>
   );
 }
 
-function HabitFields({ cfg, setCfg }: { cfg: HabitConfig; setCfg: (p: Partial<HabitConfig>) => void }) {
+/* -------------------------------- Spending -------------------------------- */
+
+function SpendingFields({ cfg, setCfg, currency }: { cfg: SpendingConfig; setCfg: (p: AnyConfig) => void; currency: string }) {
+  return (
+    <>
+      <SectionTitle>Your budget</SectionTitle>
+      <Card style={{ gap: 20 }}>
+        <Row gap={12} style={{ alignItems: 'flex-start' }}>
+          <View style={{ flex: 1 }}>
+            <MoneyField label="Daily limit" value={cfg.dailyLimit} onChange={(dailyLimit) => setCfg({ dailyLimit })} currency={currency} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <MoneyField label="Monthly limit" value={cfg.monthlyLimit} onChange={(monthlyLimit) => setCfg({ monthlyLimit })} currency={currency} />
+          </View>
+        </Row>
+        <View style={{ gap: 10 }}>
+          <Txt variant="label">No-spend days (optional)</Txt>
+          <DaysPicker value={cfg.noSpendDays} onChange={(noSpendDays) => setCfg({ noSpendDays })} allowEmpty color={colors.red} />
+          <Txt variant="caption">Days you want to spend nothing at all.</Txt>
+        </View>
+      </Card>
+
+      <SectionTitle>Spending categories</SectionTitle>
+      <ListEditor items={cfg.categories} onChange={(categories) => categories.length && setCfg({ categories })} placeholder="Add a category" />
+
+      <WhyField value={cfg.why} onChange={(why) => setCfg({ why })} placeholder="e.g. Saving for a home deposit by next year." />
+
+      <SectionTitle>Reminder</SectionTitle>
+      <Card>
+        <TimeField label="Daily — log today’s spending" value={cfg.reminderTime} onChange={(reminderTime) => setCfg({ reminderTime })} />
+      </Card>
+    </>
+  );
+}
+
+/* ---------------------------------- Habit --------------------------------- */
+
+const KIND_HELP = {
+  build: 'Something you want to do — like working out or reading.',
+  quit: 'Something you want to stop. Check in every day you stay clean.',
+  limit: 'Something you want less of. Log how much, and stay under your limit.',
+};
+
+function HabitFields({ cfg, setCfg, color }: { cfg: HabitConfig; setCfg: (p: AnyConfig) => void; color: string }) {
+  const measured = cfg.kind === 'limit' || (cfg.kind === 'build' && cfg.goalType !== 'boolean');
   return (
     <>
       <SectionTitle>Goal</SectionTitle>
-      <Card style={{ gap: 16 }}>
+      <Card style={{ gap: 18 }}>
         <Segmented
           options={[
-            { value: 'build', label: 'Build a habit' },
-            { value: 'quit', label: 'Quit a habit' },
+            { value: 'build', label: 'Build' },
+            { value: 'quit', label: 'Quit' },
+            { value: 'limit', label: 'Limit' },
           ]}
           value={cfg.kind}
-          onChange={(kind) => setCfg({ kind })}
+          onChange={(kind) =>
+            setCfg(
+              kind === 'limit'
+                ? { kind, goalType: cfg.goalType === 'boolean' ? 'count' : cfg.goalType, target: cfg.target > 1 ? cfg.target : 3 }
+                : kind === 'quit'
+                  ? { kind, goalType: 'boolean', target: 1 }
+                  : { kind },
+            )
+          }
         />
-        {cfg.kind === 'build' ? (
+        <Txt variant="caption">{KIND_HELP[cfg.kind]}</Txt>
+
+        {cfg.kind !== 'quit' ? (
           <Segmented
-            options={[
-              { value: 'boolean', label: 'Yes / No' },
-              { value: 'count', label: 'Count' },
-              { value: 'duration', label: 'Minutes' },
-            ]}
-            value={cfg.goalType}
-            onChange={(goalType) =>
-              setCfg({ goalType, target: goalType === 'boolean' ? 1 : cfg.target, unit: goalType === 'duration' ? 'min' : cfg.unit })
+            options={
+              cfg.kind === 'build'
+                ? [
+                    { value: 'boolean', label: 'Done / not done' },
+                    { value: 'count', label: 'Amount' },
+                    { value: 'duration', label: 'Minutes' },
+                  ]
+                : [
+                    { value: 'count', label: 'Amount' },
+                    { value: 'duration', label: 'Minutes' },
+                  ]
             }
+            value={cfg.goalType}
+            onChange={(goalType) => setCfg({ goalType, target: goalType === 'boolean' ? 1 : Math.max(cfg.target, 1), unit: goalType === 'duration' ? 'min' : cfg.unit === 'min' ? '' : cfg.unit })}
           />
-        ) : (
-          <Txt variant="caption">Each day you stay clean, check it off. Your streak shows how long you’ve stayed away.</Txt>
-        )}
-        {cfg.goalType !== 'boolean' && cfg.kind === 'build' ? (
+        ) : null}
+
+        {measured ? (
           <Row gap={12}>
             <View style={{ flex: 1 }}>
-              <Input label="Daily target" keyboardType="numeric" value={String(cfg.target || '')} onChangeText={(t) => setCfg({ target: Math.max(1, num(t)) })} />
+              <Input
+                label={cfg.kind === 'limit' ? 'Daily maximum' : 'Daily target'}
+                keyboardType="numeric"
+                value={String(cfg.target || '')}
+                onChangeText={(t) => setCfg({ target: Math.max(cfg.kind === 'limit' ? 0.01 : 1, num(t)) })}
+              />
             </View>
             <View style={{ flex: 1 }}>
-              <Input label="Unit" value={cfg.unit} onChangeText={(unit) => setCfg({ unit })} placeholder="pages, glasses…" maxLength={20} />
+              <Input label="Unit" value={cfg.unit} onChangeText={(unit) => setCfg({ unit })} placeholder="pages, cups…" maxLength={20} />
             </View>
           </Row>
         ) : null}
-        <View style={{ gap: 8 }}>
+
+        <View style={{ gap: 10 }}>
           <Txt variant="label">Days</Txt>
-          <DaysPicker value={cfg.days} onChange={(days) => setCfg({ days })} />
+          <DaysPicker value={cfg.days} onChange={(days) => setCfg({ days })} color={color} />
         </View>
         <Row gap={8} style={{ flexWrap: 'wrap' }}>
           <Chip label="Every day" selected={cfg.days.length === 7} onPress={() => setCfg({ days: [0, 1, 2, 3, 4, 5, 6] })} />
@@ -294,13 +396,24 @@ function HabitFields({ cfg, setCfg }: { cfg: HabitConfig; setCfg: (p: Partial<Ha
         </Row>
       </Card>
 
-      <SectionTitle>Why this matters</SectionTitle>
-      <Input value={cfg.why} onChangeText={(why) => setCfg({ why })} multiline maxLength={280} placeholder="The reason you'll keep going on hard days." />
+      <WhyField value={cfg.why} onChange={(why) => setCfg({ why })} placeholder="The reason you’ll keep going on hard days." />
 
       <SectionTitle>Reminder</SectionTitle>
       <Card>
         <TimeField label="Daily reminder" value={cfg.reminderTime} onChange={(reminderTime) => setCfg({ reminderTime })} />
       </Card>
+    </>
+  );
+}
+
+function WhyField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <>
+      <SectionTitle>Why this matters to you</SectionTitle>
+      <View style={{ backgroundColor: colors.primarySoft, borderRadius: radius.lg, padding: 4 }}>
+        <Input value={value} onChangeText={onChange} multiline maxLength={280} placeholder={placeholder} style={{ backgroundColor: colors.surface, borderWidth: 0 }} />
+      </View>
+      <Txt variant="caption" style={{ marginTop: 8 }}>You’ll see these exact words when you’re about to break your rule.</Txt>
     </>
   );
 }

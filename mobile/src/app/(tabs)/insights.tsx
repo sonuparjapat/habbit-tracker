@@ -9,7 +9,7 @@ import { useTrackers } from '@/lib/queries';
 
 export default function Insights() {
   const { data, isLoading } = useTrackers();
-  const currency = useAuth((s) => s.user?.currency ?? 'INR');
+  const currency = useAuth((s) => s.user?.currency ?? 'USD');
   const [selected, setSelected] = useState<string | null>(null);
   const signedIn = useAuth((s) => !!s.token);
 

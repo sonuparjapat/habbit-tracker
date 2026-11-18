@@ -9,7 +9,7 @@ import { colors } from '@/theme';
 export default function RuleBreaks() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading } = useRuleBreaks(id, 'all');
-  const currency = useAuth((s) => s.user?.currency ?? 'INR');
+  const currency = useAuth((s) => s.user?.currency ?? 'USD');
   if (isLoading) return <Loading />;
 
   // Group by day
@@ -32,8 +32,8 @@ export default function RuleBreaks() {
               <View key={b.id} style={{ gap: 4, borderLeftWidth: 3, borderLeftColor: colors.red, paddingLeft: 12 }}>
                 <Row style={{ justifyContent: 'space-between' }}>
                   <Txt variant="h3" color={colors.red}>{b.label}</Txt>
-                  {b.tradeNet != null ? (
-                    <Txt variant="mono" color={pnlColor(b.tradeNet, colors)}>{money(b.tradeNet, currency, { sign: true })}</Txt>
+                  {b.amount != null ? (
+                    <Txt variant="mono" color={pnlColor(b.amount, colors)}>{money(b.amount, currency, { sign: true })}</Txt>
                   ) : null}
                 </Row>
                 <Txt variant="caption">{b.description}</Txt>

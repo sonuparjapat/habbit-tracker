@@ -1,8 +1,9 @@
-export function money(amount: number, currency = 'INR', opts: { sign?: boolean; compact?: boolean } = {}) {
+/** Formats in the user's currency using the device's locale conventions (₹1,00,000 vs $100,000 vs 100.000 €). */
+export function money(amount: number, currency = 'USD', opts: { sign?: boolean; compact?: boolean } = {}) {
   const abs = Math.abs(amount);
   let str: string;
   try {
-    str = new Intl.NumberFormat('en-IN', {
+    str = new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency,
       maximumFractionDigits: opts.compact && abs >= 1000 ? 1 : 0,

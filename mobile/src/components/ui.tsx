@@ -111,9 +111,9 @@ const textStyles = StyleSheet.create({
   title: { color: colors.text, fontSize: 28, fontWeight: '800', letterSpacing: -0.6 },
   h2: { color: colors.text, fontSize: 20, fontWeight: '700', letterSpacing: -0.3 },
   h3: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  body: { color: colors.text, fontSize: 15, lineHeight: 21 },
+  body: { color: colors.text, fontSize: 16, lineHeight: 23 },
   label: { color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
-  caption: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+  caption: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
   mono: { color: colors.text, fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });
 
@@ -154,8 +154,8 @@ export function Card({
 
 export function SectionTitle({ children, action, onAction }: { children: ReactNode; action?: string; onAction?: () => void }) {
   return (
-    <Row style={{ justifyContent: 'space-between', marginTop: space.xl, marginBottom: space.md }}>
-      <Txt variant="label">{children}</Txt>
+    <Row style={{ justifyContent: 'space-between', marginTop: space.xxl, marginBottom: 14 }}>
+      <Txt variant="h3" style={{ fontSize: 18, flex: 1 }}>{children}</Txt>
       {action ? (
         <Pressable onPress={onAction} hitSlop={10}>
           <Txt variant="caption" color={colors.primary} style={{ fontWeight: '700' }}>
@@ -346,6 +346,56 @@ export function Stepper({ value, onChange, step = 1, min = 0 }: { value: number;
   );
 }
 
+export function Checkbox({ checked, onChange, children }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode }) {
+  return (
+    <Pressable
+      onPress={() => {
+        haptic.tap();
+        onChange(!checked);
+      }}
+      hitSlop={6}
+      style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+      <View
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: 8,
+          borderWidth: 2,
+          borderColor: checked ? colors.primary : colors.borderStrong,
+          backgroundColor: checked ? colors.primary : 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: 1,
+        }}>
+        {checked ? <Icon name="check-bold" size={14} /> : null}
+      </View>
+      <View style={{ flex: 1 }}>{children}</View>
+    </Pressable>
+  );
+}
+
+export function IconButton({ icon, onPress, color = colors.textMuted, size = 40 }: { icon: string; onPress: () => void; color?: string; size?: number }) {
+  return (
+    <Pressable
+      onPress={() => {
+        haptic.tap();
+        onPress();
+      }}
+      hitSlop={8}
+      style={({ pressed }) => ({
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: colors.surfaceAlt,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed ? 0.7 : 1,
+      })}>
+      <Icon name={icon} size={size * 0.5} color={color} />
+    </Pressable>
+  );
+}
+
 /* ------------------------------ Data display ------------------------------ */
 
 export function Stat({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
@@ -475,7 +525,7 @@ export function ErrorView({ error, onRetry }: { error: unknown; onRetry?: () => 
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  scrollContent: { padding: space.lg, paddingBottom: 120 },
+  scrollContent: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: 140 },
   card: { borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   button: { borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   input: {

@@ -1,11 +1,15 @@
+/**
+ * Local reminders. Privacy rule: we never ask the OS for notification permission,
+ * and never schedule anything, until the user has explicitly opted in
+ * (onboarding "Allow reminders" or the toggle in Profile).
+ */
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { money } from './format';
-import { storage } from './storage';
+import { usePrefs } from './prefs';
 import type { Tracker } from './types';
 
 const CHANNEL = 'reminders';
-const ENABLED_KEY = 'notifications_enabled';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -16,30 +20,50 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export async function notificationsEnabled() {
-  return (await storage.get(ENABLED_KEY)) !== 'false';
-}
+const consented = () => usePrefs.getState().remindersConsent;
 
-export async function setNotificationsEnabled(enabled: boolean, trackers: Tracker[], currency: string) {
-  await storage.set(ENABLED_KEY, String(enabled));
-  if (enabled) return scheduleReminders(trackers, currency, true);
-  await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
-  return true;
-}
-
-async function ensurePermission(ask: boolean) {
-  if (Platform.OS === 'web') return false;
-  if (Platform.OS === 'android') {
+async function ensureChannel() {
+  if (Platform.OS === 'android')
     await Notifications.setNotificationChannelAsync(CHANNEL, {
       name: 'Reminders',
       // eslint-disable-next-line import/namespace -- exported at runtime via `export *` of a types module
       importance: Notifications.AndroidImportance.HIGH,
     });
+}
+
+/** Ask the OS for permission. Only call this from an explicit user action. */
+export async function requestReminderPermission(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  try {
+    await ensureChannel();
+    const current = await Notifications.getPermissionsAsync();
+    if (current.granted) return true;
+    return (await Notifications.requestPermissionsAsync()).granted;
+  } catch {
+    return false;
   }
-  const current = await Notifications.getPermissionsAsync();
-  if (current.granted) return true;
-  if (!ask) return false;
-  return (await Notifications.requestPermissionsAsync()).granted;
+}
+
+async function hasPermission() {
+  if (Platform.OS === 'web') return false;
+  try {
+    return (await Notifications.getPermissionsAsync()).granted;
+  } catch {
+    return false;
+  }
+}
+
+/** User turned reminders on or off. Returns the resulting state. */
+export async function setRemindersEnabled(enabled: boolean, trackers: Tracker[], currency: string): Promise<boolean> {
+  if (!enabled) {
+    await usePrefs.getState().update({ remindersConsent: false });
+    await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
+    return false;
+  }
+  const granted = await requestReminderPermission();
+  await usePrefs.getState().update({ remindersConsent: granted });
+  if (granted) await scheduleReminders(trackers, currency);
+  return granted;
 }
 
 const parseTime = (t: string) => {
@@ -59,19 +83,18 @@ async function weekly(weekday0: number, time: string, title: string, body: strin
   });
 }
 
-/**
- * Re-creates every local reminder from the user's trackers.
- * Called on app start and whenever trackers change. Returns false if not permitted.
- */
-export async function scheduleReminders(trackers: Tracker[], currency: string, ask = false) {
+const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
+
+/** Re-create all reminders from the user's trackers (only if consented and permitted). */
+export async function scheduleReminders(trackers: Tracker[], currency: string) {
   try {
-    if (!(await notificationsEnabled())) return false;
-    if (!(await ensurePermission(ask))) return false;
+    if (!consented() || !(await hasPermission())) return false;
+    await ensureChannel();
     await Notifications.cancelAllScheduledNotificationsAsync();
 
     for (const t of trackers) {
       if (t.archived) continue;
-      const route = { url: `/tracker/${t.id}` };
+      const data = { url: `/tracker/${t.id}` };
       if (t.type === 'trading') {
         const c = t.config;
         for (const d of c.tradingDays) {
@@ -79,21 +102,31 @@ export async function scheduleReminders(trackers: Tracker[], currency: string, a
             await weekly(
               d,
               c.preMarketReminder,
-              '🛡️ Pre-market: read your rules',
-              `${c.maxTradesPerDay} trade${c.maxTradesPerDay > 1 ? 's' : ''} max · target ${money(c.dailyProfitTarget, currency)} · max loss ${money(c.dailyMaxLoss, currency)}. Then walk away.`,
-              route,
+              `🛡️ ${t.name}: read your rules`,
+              [
+                `Max ${c.maxTradesPerDay} trade${c.maxTradesPerDay > 1 ? 's' : ''}`,
+                c.dailyProfitTarget ? `target ${money(c.dailyProfitTarget, currency)}` : null,
+                c.dailyMaxLoss ? `max loss ${money(c.dailyMaxLoss, currency)}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ') + '. Then walk away.',
+              data,
             );
-          if (c.journalReminder)
-            await weekly(d, c.journalReminder, '📓 Close your day', 'Log your trade and write 3 lines in your journal while it is fresh.', route);
+          if (c.journalReminder) await weekly(d, c.journalReminder, `📓 ${t.name}: close your day`, 'Log your trades and write three lines in your journal.', data);
         }
+      } else if (t.type === 'spending') {
+        if (t.config.reminderTime)
+          for (const d of EVERY_DAY)
+            await weekly(d, t.config.reminderTime, `💰 ${t.name}`, 'Log today’s spending — every rupee, dollar or euro counts.', data);
       } else if (t.config.reminderTime) {
+        const kind = t.config.kind;
         for (const d of t.config.days)
           await weekly(
             d,
             t.config.reminderTime,
-            t.config.kind === 'quit' ? `🚫 Stay clean: ${t.name}` : `✅ Time for: ${t.name}`,
+            kind === 'quit' ? `🚫 Stay clean: ${t.name}` : kind === 'limit' ? `📉 ${t.name}: stay under your limit` : `✅ Time for: ${t.name}`,
             t.config.why || 'Small wins, every day. Keep the streak alive.',
-            route,
+            data,
           );
       }
     }
@@ -104,14 +137,14 @@ export async function scheduleReminders(trackers: Tracker[], currency: string, a
   }
 }
 
-/** After the day locks, check in once more later to keep the user away from the terminal. */
+/** After a trading day locks, check in once more later to keep the user away. */
 export async function scheduleStayAwayNudge(pnl: number, currency: string) {
   try {
-    if (!(await notificationsEnabled()) || !(await ensurePermission(false))) return;
+    if (!consented() || !(await hasPermission())) return;
     await Notifications.scheduleNotificationAsync({
       content: {
         title: '🔒 Your day is closed',
-        body: `Protect today's ${money(pnl, currency, { sign: true })}. Close the charts — the market will be there tomorrow.`,
+        body: `Protect today’s ${money(pnl, currency, { sign: true })}. Close the charts — the market will be there tomorrow.`,
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 30 * 60, channelId: CHANNEL },
     });

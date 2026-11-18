@@ -87,7 +87,7 @@ export default function LogTrade() {
 /* ---------------------------------- Lock ---------------------------------- */
 
 function LockedView({ tracker, status, onBreak }: { tracker: TradingTracker; status: DayStatus; onBreak: () => void }) {
-  const currency = useAuth((s) => s.user?.currency ?? 'INR');
+  const currency = useAuth((s) => s.user?.currency ?? 'USD');
   const { data: dash } = useDashboard();
   const card = dash?.cards.find((c) => c.tracker.id === tracker.id);
   const cleanStreak = card && card.tracker.type === 'trading' ? (card.today as any).streaks.currentClean : 0;
@@ -268,7 +268,7 @@ function ChecklistView({
   setEmotion: (v: string | null) => void;
   onNext: () => void;
 }) {
-  const currency = useAuth((s) => s.user?.currency ?? 'INR');
+  const currency = useAuth((s) => s.user?.currency ?? 'USD');
   const list = tracker.config.checklist;
   const risky = emotionOf(emotion)?.risky;
   const allChecked = list.every((i) => checked.includes(i));
@@ -501,7 +501,7 @@ function TradeForm({
 /* --------------------------------- Result --------------------------------- */
 
 function ResultView({ tracker, result }: { tracker: TradingTracker; result: { breaks: RuleBreak[]; status: DayStatus } }) {
-  const currency = useAuth((s) => s.user?.currency ?? 'INR');
+  const currency = useAuth((s) => s.user?.currency ?? 'USD');
   const s = result.status;
   const broke = result.breaks.length > 0;
 
