@@ -253,7 +253,7 @@ export function GuestHome() {
             {chosen.map((c) => (
               <Row key={c.key} gap={6} style={{ backgroundColor: c.color + '26', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99 }}>
                 <Icon name={c.icon} size={14} color={c.color} />
-                <Txt variant="caption" color={colors.text} style={{ fontSize: 13 }}>{c.label}</Txt>
+                <Txt variant="caption" style={{ fontSize: 13, fontWeight: '600' }}>{c.label}</Txt>
               </Row>
             ))}
           </Row>

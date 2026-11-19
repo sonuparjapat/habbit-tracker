@@ -6,10 +6,12 @@ import { HttpError } from './errors.js';
 
 export const USER_FIELDS = `id, email, name, role, status, timezone, currency, interests,
   marketing_opt_in AS "marketingOptIn", terms_version AS "termsVersion",
-  (email_verified_at IS NOT NULL) AS "emailVerified", created_at AS "createdAt"`;
+  (email_verified_at IS NOT NULL) AS "emailVerified", created_at AS "createdAt",
+  nudge_push AS "nudgePush", nudge_email AS "nudgeEmail", (push_token IS NOT NULL) AS "hasPushToken", push_news AS "pushNews",
+  (locked_at IS NOT NULL) AS "locked"`;
 
 export function signToken(user) {
-  return jwt.sign({ sub: user.id, tv: user.token_version ?? 0 }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
+  return jwt.sign({ sub: user.id, tv: user.token_version ?? 0 }, config.jwtSecret, { expiresIn: config.jwtExpiresIn, algorithm: 'HS256' });
 }
 
 /**
@@ -47,7 +49,8 @@ export async function requireAuth(req, _res, next) {
 
   let payload;
   try {
-    payload = jwt.verify(header.slice(7), config.jwtSecret);
+    // Only accept tokens signed the way we sign them (blocks 'alg: none' and algorithm-swap tricks)
+    payload = jwt.verify(header.slice(7), config.jwtSecret, { algorithms: ['HS256'] });
   } catch {
     throw new HttpError(401, 'Session expired, please sign in again', 'UNAUTHENTICATED');
   }
@@ -64,6 +67,7 @@ export async function requireAuth(req, _res, next) {
   if (!user || user.token_version !== (payload.tv ?? 0))
     throw new HttpError(401, 'Session expired, please sign in again', 'UNAUTHENTICATED');
   if (user.status !== 'active') throw new HttpError(403, 'This account has been suspended', 'SUSPENDED');
+  if (user.locked) throw new HttpError(423, 'Your account is locked for your safety. Check your email to unlock it.', 'ACCOUNT_LOCKED');
 
   req.user = user;
   next();

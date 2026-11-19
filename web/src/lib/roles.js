@@ -20,6 +20,7 @@ export const PERMISSIONS = Object.freeze({
   FEEDBACK_MANAGE: 'feedback.manage',
   SETTINGS_MANAGE: 'settings.manage',
   SYSTEM_VIEW: 'system.view',
+  SECURITY_MANAGE: 'security.manage',
 });
 
 /** `me` is the signed-in user from GET /auth/me (it carries its own permissions list). */

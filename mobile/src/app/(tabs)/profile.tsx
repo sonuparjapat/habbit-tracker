@@ -10,6 +10,7 @@ import { CATEGORIES } from '@/lib/catalog';
 import { setRemindersEnabled } from '@/lib/notifications';
 import { useAppConfig } from '@/lib/config';
 import { usePrefs } from '@/lib/prefs';
+import { enablePush, refreshPushToken } from '@/lib/push';
 import { useTrackers } from '@/lib/queries';
 import { contactSupport } from '@/lib/support';
 import type { CategoryKey } from '@/lib/types';
@@ -67,10 +68,13 @@ function Appearance() {
   );
 }
 
+/** 20 -> "8 PM" */
+const hourLabel = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
+
 const Divider = () => <View style={{ height: 1, backgroundColor: colors.border }} />;
 
 export default function Profile() {
-  const { user, updateProfile, logout, logoutEverywhere } = useAuth();
+  const { user, updateProfile, signOut, logoutEverywhere } = useAuth();
   const { data: trackers } = useTrackers();
   const remindersConsent = usePrefs((s) => s.remindersConsent);
   const { settings } = useAppConfig();
@@ -106,6 +110,11 @@ export default function Profile() {
       alert('Could not save', e?.message);
     }
   };
+
+  // Trackers the evening check-in looks at: habits with a reminder, trading with a journal reminder
+  const trackersWithReminder = (trackers ?? []).filter((t) =>
+    t.type === 'habit' ? !!(t.config as { reminderTime?: string | null }).reminderTime : t.type === 'trading' ? !!(t.config as { journalReminder?: string | null }).journalReminder : false,
+  ).length;
 
   const devCur = deviceCurrency();
   const currencies = Array.from(new Set([user.currency, ...(devCur ? [devCur] : []), ...COMMON_CURRENCIES]));
@@ -211,6 +220,43 @@ export default function Profile() {
 
       <Appearance />
 
+      {settings.nudge_enabled ? (
+        <>
+          <SectionTitle>Evening check-in</SectionTitle>
+          <Card style={{ gap: 6 }}>
+            <Txt variant="caption" style={{ marginBottom: 6 }}>
+              Around {hourLabel(settings.nudge_hour)}, if you haven’t logged a tracker that has a reminder, we’ll nudge you once. Already logged? We stay quiet.
+            </Txt>
+            {trackersWithReminder === 0 ? (
+              <Txt variant="caption" color={colors.amber} style={{ marginBottom: 6 }}>
+                None of your trackers has a reminder yet — set one in a tracker’s settings to include it.
+              </Txt>
+            ) : null}
+            <ToggleRow
+              label="Phone notification"
+              value={user.nudgePush && user.hasPushToken}
+              onChange={async (v) => {
+                if (!v) return save({ nudgePush: false });
+                const result = await enablePush().catch(() => 'unavailable' as const);
+                if (result === 'ok') await save({ nudgePush: true });
+                else if (result === 'denied') alert('Notifications are blocked', 'Allow notifications for Anchor in your phone settings, then try again.');
+                else alert('Not available yet', 'Phone nudges aren’t available on this version of the app yet. Switch on the email nudge meanwhile.');
+              }}
+            />
+            <Divider />
+            <ToggleRow
+              label="Email"
+              hint={user.emailVerified ? undefined : 'Verify your email first.'}
+              value={user.nudgeEmail}
+              onChange={(v) => {
+                if (v && !user.emailVerified) return router.push('/verify-email');
+                return save({ nudgeEmail: v });
+              }}
+            />
+          </Card>
+        </>
+      ) : null}
+
       <SectionTitle>Privacy & notifications</SectionTitle>
       <Card style={{ gap: 6 }}>
         <ToggleRow
@@ -220,7 +266,15 @@ export default function Profile() {
           onChange={async (v) => {
             const on = await setRemindersEnabled(v, trackers ?? [], user.currency);
             if (v && !on) alert('Notifications are blocked', 'Allow notifications for Anchor in your phone settings, then try again.');
+            if (on) void refreshPushToken();
           }}
+        />
+        <Divider />
+        <ToggleRow
+          label="News & tips notifications"
+          hint="New features, challenges and tips — a few a month at most."
+          value={user.pushNews}
+          onChange={(v) => save({ pushNews: v })}
         />
         <Divider />
         <ToggleRow label="Tips & product emails" hint="Occasional, never spam." value={user.marketingOptIn} onChange={(v) => save({ marketingOptIn: v })} />
@@ -251,7 +305,7 @@ export default function Profile() {
       <AdSlot placement="profile" />
 
       <View style={{ gap: 4, marginTop: 32 }}>
-        <Button title="Sign out" variant="secondary" icon="logout" onPress={() => confirm('Sign out?', 'You can sign back in any time.', () => void logout())} />
+        <Button title="Sign out" variant="secondary" icon="logout" onPress={() => confirm('Sign out?', 'You can sign back in any time.', () => void signOut())} />
         <Button title="Delete account" variant="ghost" icon="delete-outline" onPress={() => router.push('/account/delete')} />
       </View>
       <Txt variant="caption" center style={{ marginTop: 24, color: colors.textDim, fontSize: 12 }}>

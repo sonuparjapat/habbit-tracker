@@ -23,6 +23,7 @@ export const PERMISSIONS = Object.freeze({
   FEEDBACK_MANAGE: 'feedback.manage',
   SETTINGS_MANAGE: 'settings.manage', // app-wide settings (support email, maintenance, versions, XP...)
   SYSTEM_VIEW: 'system.view', // health, test email
+  SECURITY_MANAGE: 'security.manage', // block / unblock IPs, security log (super admins only)
 });
 
 const ALL = Object.values(PERMISSIONS);

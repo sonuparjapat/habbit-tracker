@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Badge, DataTable, ErrorBox, Field, PageHeader, Section, Spinner, StatCard, useToast } from '@/components/admin/kit';
 import { useAdmin } from '@/components/AdminShell';
 import { post } from '@/lib/api';
-import { fmtDateTime } from '@/lib/format';
+import { fmtDateTime, timeAgo } from '@/lib/format';
+import { can, PERMISSIONS as P } from '@/lib/roles';
 import { useAction, useResource } from '@/lib/useApi';
 
 const uptime = (s) => (s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${(s / 3600).toFixed(1)} h` : `${(s / 86400).toFixed(1)} days`);
@@ -18,7 +19,8 @@ export default function SystemPage() {
 
   if (loading && !data) return <Spinner />;
   if (error) return <ErrorBox error={error} onRetry={reload} />;
-  const { api: a, database: db, migrations: m, email } = data;
+  const { api: a, database: db, migrations: m, email, nudges } = data;
+  const last = nudges?.lastRun;
 
   return (
     <div className="stack" style={{ gap: 20 }}>
@@ -58,6 +60,31 @@ export default function SystemPage() {
           </div>
         </div>
       </Section>
+
+      {nudges ? (
+        <Section
+          title="Evening check-in"
+          action={
+            can(me, P.SETTINGS_MANAGE) ? (
+              <button className="btn btn-sm" disabled={busy} onClick={() => run(() => post('/admin/system/run-nudges'), { success: 'Check-in ran', after: reload })}>
+                Run now
+              </button>
+            ) : null
+          }>
+          <div className="stack" style={{ gap: 12 }}>
+            <p className="muted small" style={{ margin: 0 }}>
+              Every 5 minutes the server checks members who opted in and reached the check hour (App settings → Evening check-in) in their own
+              timezone. Only those who missed a tracker with a reminder get one push and/or email — once a day. Everyone else is left alone.
+            </p>
+            <div className="grid grid-4">
+              <StatCard label="Opted in · push" value={nudges.optedInPush} icon="📱" accent="violet" />
+              <StatCard label="Opted in · email" value={nudges.optedInEmail} icon="✉️" accent="blue" />
+              <StatCard label="Last run" value={last ? timeAgo(last.at) : '—'} sub={last?.skipped ? `Skipped: ${last.skipped}` : last ? `${last.checked} checked · ${last.nudged} nudged` : 'Not since the API started'} icon="⏰" accent="green" />
+              <StatCard label="Sent last run" value={last ? `${last.pushes} · ${last.emails}` : '—'} sub={last ? `push · email${last.errors ? ` · ${last.errors} failed` : ''}` : ''} icon="🔔" accent={last?.errors ? 'red' : 'amber'} />
+            </div>
+          </div>
+        </Section>
+      ) : null}
 
       <div className="grid grid-2">
         <Section title="Tables">

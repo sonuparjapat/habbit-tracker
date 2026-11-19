@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth';
 import { useAppConfig } from '@/lib/config';
 import { scheduleReminders } from '@/lib/notifications';
 import { usePrefs } from '@/lib/prefs';
+import { refreshPushToken } from '@/lib/push';
 import { useTrackers } from '@/lib/queries';
 import { queryClient } from '@/lib/queryClient';
 import { applyTheme, colors, type ThemeMode } from '@/theme';
@@ -64,9 +65,16 @@ function ReminderSync() {
   const { data } = useTrackers();
   const currency = useAuth((s) => s.user?.currency ?? 'USD');
   const consent = usePrefs((s) => s.remindersConsent);
+  const userId = useAuth((s) => s.user?.id);
   useEffect(() => {
     if (data && consent) void scheduleReminders(data, currency);
   }, [data, currency, consent]);
+
+  // If this phone allows notifications, keep the server's copy of its push token fresh
+  // (never asks for permission — that only happens when the member taps a switch)
+  useEffect(() => {
+    if (userId) void refreshPushToken();
+  }, [userId, consent]);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
@@ -137,6 +145,7 @@ export default function RootLayout() {
                   <Stack.Screen name="login" options={{ headerShown: false, ...modal }} />
                   <Stack.Screen name="register" options={{ headerShown: false, ...modal }} />
                   <Stack.Screen name="forgot-password" options={{ title: 'Reset password', ...modal }} />
+                  <Stack.Screen name="unlock" options={{ title: 'Unlock account', ...modal }} />
                   <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
                   <Stack.Screen name="feedback" options={{ title: 'Send feedback', ...modal }} />
 

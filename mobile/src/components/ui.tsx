@@ -92,9 +92,13 @@ export function CountUp({ value, format = (n) => String(Math.round(n)), duration
   return <Txt {...txt}>{format(shown)}</Txt>;
 }
 
+/** On a coloured panel, the theme's text colours (dark in light mode) would vanish — use the panel's ink instead. */
+const isThemeInk = (c?: string) => c === colors.text || c === colors.textMuted || c === colors.textDim;
+
 export function Icon({ name, size = 20, color }: { name: string; size?: number; color?: string }) {
   const ink = useContext(InkContext);
-  return <MaterialCommunityIcons name={name as IconName} size={size} color={color ?? ink ?? colors.text} />;
+  const tint = ink && (!color || isThemeInk(color)) ? ink : (color ?? colors.text);
+  return <MaterialCommunityIcons name={name as IconName} size={size} color={tint} />;
 }
 
 export const haptic = {
@@ -166,7 +170,8 @@ export function Txt({
   center?: boolean;
 }) {
   const ink = useContext(InkContext);
-  const tint = color ?? (ink && variant !== 'label' && variant !== 'caption' ? ink : ink ? 'rgba(255,255,255,0.82)' : null);
+  const softInk = variant === 'label' || variant === 'caption' || color === colors.textMuted || color === colors.textDim;
+  const tint = ink && (!color || isThemeInk(color)) ? (softInk ? 'rgba(255,255,255,0.82)' : ink) : (color ?? null);
   return (
     <Text
       numberOfLines={numberOfLines}

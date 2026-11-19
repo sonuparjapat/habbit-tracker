@@ -16,6 +16,15 @@ export interface User {
   marketingOptIn: boolean;
   emailVerified: boolean;
   termsOutdated: boolean;
+  /** Evening check-in: phone notification / email if a tracker with a reminder was missed */
+  nudgePush: boolean;
+  nudgeEmail: boolean;
+  /** The server has a push token for this member's phone */
+  hasPushToken: boolean;
+  /** Receive news & tips notifications sent by the team */
+  pushNews: boolean;
+  /** Locked for safety (the owner unlocks it with an emailed code) */
+  locked?: boolean;
 }
 
 export interface Category {

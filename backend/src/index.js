@@ -3,6 +3,7 @@ import { config } from './config.js';
 import { migrate } from './db/migrate.js';
 import { pool } from './db/pool.js';
 import { seed } from './db/seed.js';
+import { runNudges } from './services/nudges.js';
 
 async function main() {
   // Create / upgrade all tables, then seed defaults. Safe on every start and every deploy.
@@ -23,9 +24,15 @@ async function main() {
   const cleanupTimer = setInterval(cleanup, 60 * 60 * 1000);
   cleanupTimer.unref();
 
+  // Evening check-in: every 5 minutes, nudge members who reached their check hour and missed a tracker
+  const nudge = () => runNudges().catch((err) => console.error('evening check-in failed:', err.message));
+  const nudgeTimer = setInterval(nudge, 5 * 60 * 1000);
+  nudgeTimer.unref();
+
   const shutdown = (signal) => {
     console.log(`${signal} received, shutting down`);
     clearInterval(cleanupTimer);
+    clearInterval(nudgeTimer);
     server.close(() => pool.end().then(() => process.exit(0)));
     setTimeout(() => process.exit(1), 10_000).unref();
   };

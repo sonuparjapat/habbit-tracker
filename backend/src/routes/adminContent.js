@@ -15,6 +15,10 @@
  *   GET    /api/admin/analytics              growth, retention, popular trackers, rules broken most
  *   GET    /api/admin/system                 API / database / migrations / email health
  *   POST   /api/admin/system/test-email      send a test email
+ *   POST   /api/admin/system/run-nudges      run the evening check-in now (normally every 5 minutes)
+ *   GET    /api/admin/push                   notifications sent to phones (history) + how many can receive one
+ *   POST   /api/admin/push/count             how many members an audience would reach
+ *   POST   /api/admin/push/send              send a notification (or a test to yourself)
  */
 import { Router } from 'express';
 import { readdir } from 'node:fs/promises';
@@ -26,7 +30,10 @@ import { pool, query } from '../db/pool.js';
 import { requirePermission } from '../middleware/auth.js';
 import { HttpError, isUuid, parse } from '../middleware/errors.js';
 import { audit } from '../services/audit.js';
+import { broadcast, countAudience, PUSH_LINKS } from '../services/broadcast.js';
+import { CATEGORY_KEYS } from '../services/catalog.js';
 import { sendEmail } from '../services/email.js';
+import { lastNudgeRun, runNudges } from '../services/nudges.js';
 import { PERMISSIONS as P } from '../services/roles.js';
 import { ruleLabel } from '../services/rules.js';
 import { getSettings, resetSetting, saveSettings, SETTINGS } from '../services/settings.js';
@@ -254,7 +261,25 @@ adminContentRouter.get('/system', requirePermission(P.SYSTEM_VIEW), async (_req,
     },
     migrations: { applied, pending: files.filter((f) => f.endsWith('.sql') && !appliedSet.has(f)) },
     email: { provider: config.email.provider, from: `${config.email.from.name} <${config.email.from.email}>`, problem: config.email.problem },
+    nudges: { lastRun: lastNudgeRun, ...(await nudgeCounts()) },
   });
+});
+
+/** How many members opted in to evening check-ins. */
+async function nudgeCounts() {
+  const { rows } = await query(
+    `SELECT count(*) FILTER (WHERE nudge_push AND push_token IS NOT NULL)::int AS push,
+            count(*) FILTER (WHERE nudge_email)::int AS email
+       FROM members WHERE status = 'active'`,
+  );
+  return { optedInPush: rows[0].push, optedInEmail: rows[0].email };
+}
+
+/** POST /api/admin/system/run-nudges — run the evening check-in right now (it also runs by itself every 5 minutes). */
+adminContentRouter.post('/system/run-nudges', requirePermission(P.SETTINGS_MANAGE), async (req, res) => {
+  const summary = await runNudges();
+  await audit(req, 'system.run_nudges', 'nudges', null, summary);
+  res.json({ summary });
 });
 
 adminContentRouter.post('/system/test-email', requirePermission(P.SYSTEM_VIEW), async (req, res) => {
@@ -272,4 +297,60 @@ adminContentRouter.post('/system/test-email', requirePermission(P.SYSTEM_VIEW), 
   }
   await audit(req, 'system.test_email', 'email', to);
   res.json({ ok: true, provider: config.email.provider });
+});
+
+/* --------------------------- Phone notifications --------------------------- */
+
+const audienceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('all') }),
+  z.object({ kind: z.literal('interest'), interest: z.enum(CATEGORY_KEYS) }),
+  z.object({ kind: z.literal('inactive'), days: z.number().int().min(1).max(365) }),
+  z.object({ kind: z.literal('member'), email: z.string().trim().toLowerCase().pipe(z.email('Enter the member’s email')) }),
+]);
+
+/** GET /api/admin/push — recent notifications and how many members can receive one. */
+adminContentRouter.get('/push', requirePermission(P.CONTENT_MANAGE), async (_req, res) => {
+  const [{ rows: campaigns }, reachable] = await Promise.all([
+    query(
+      `SELECT c.id, c.title, c.body, c.link, c.audience, c.recipients, c.delivered, c.failed, c.created_at AS "createdAt",
+              m.email AS "sentBy"
+         FROM push_campaigns c LEFT JOIN members m ON m.id = c.created_by
+        ORDER BY c.created_at DESC LIMIT 50`,
+    ),
+    countAudience({ kind: 'all' }),
+  ]);
+  res.json({ campaigns, reachable, links: PUSH_LINKS, interests: CATEGORY_KEYS });
+});
+
+/** POST /api/admin/push/count — { audience } → { count } (shown live while composing). */
+adminContentRouter.post('/push/count', requirePermission(P.CONTENT_MANAGE), async (req, res) => {
+  const { audience } = parse(z.object({ audience: audienceSchema }), req.body);
+  res.json({ count: await countAudience(audience) });
+});
+
+const sendSchema = z.object({
+  title: z.string().trim().min(1, 'Add a title').max(65, 'Keep the title under 65 characters'),
+  body: z.string().trim().min(1, 'Add a message').max(240, 'Keep the message under 240 characters'),
+  link: z.enum(Object.keys(PUSH_LINKS)).nullable().default(null),
+  audience: audienceSchema.default({ kind: 'all' }),
+  /** true = send only to my own phone, to see how it looks */
+  test: z.boolean().default(false),
+});
+
+/** POST /api/admin/push/send — send now (or a test to yourself). Every real send is recorded and audited. */
+adminContentRouter.post('/push/send', requirePermission(P.CONTENT_MANAGE), async (req, res) => {
+  const body = parse(sendSchema, req.body);
+  if (body.test) {
+    const result = await broadcast({ ...body, onlyTo: req.user.id });
+    if (!result.recipients) throw new HttpError(400, 'Your account has no phone connected. Sign in to the app on your phone and allow notifications first.', 'NO_DEVICE');
+    return res.json({ result });
+  }
+  const result = await broadcast(body);
+  const { rows } = await query(
+    `INSERT INTO push_campaigns (title, body, link, audience, recipients, delivered, failed, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+    [body.title, body.body, body.link, JSON.stringify(body.audience), result.recipients, result.delivered, result.failed, req.user.id],
+  );
+  await audit(req, 'push.send', 'push_campaign', rows[0].id, { title: body.title, audience: body.audience, ...result });
+  res.json({ result });
 });

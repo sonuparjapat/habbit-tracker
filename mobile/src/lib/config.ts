@@ -23,6 +23,8 @@ export interface AppSettings {
   ads_enabled: boolean;
   daily_quotes: string[];
   default_theme: 'dark' | 'light' | 'system';
+  nudge_enabled: boolean;
+  nudge_hour: number;
   tour_enabled: boolean;
   tour_steps: string[];
   xp_habit_day: number;
@@ -66,6 +68,8 @@ export const DEFAULT_CONFIG: AppConfig = {
     ads_enabled: false,
     daily_quotes: ['Small promises, kept daily, build unshakable self-trust.'],
     default_theme: 'dark',
+    nudge_enabled: true,
+    nudge_hour: 20,
     tour_enabled: true,
     tour_steps: [],
     xp_habit_day: 10,

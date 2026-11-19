@@ -2,6 +2,7 @@ import { getLocales } from 'expo-localization';
 import { create } from 'zustand';
 import { api, get, patch, post, setAuthToken, setUnauthorizedHandler } from './api';
 import { usePrefs } from './prefs';
+import { forgetPushToken } from './push';
 import { queryClient } from './queryClient';
 import { storage } from './storage';
 import type { CategoryKey, User } from './types';
@@ -30,10 +31,16 @@ interface AuthState {
   resendVerification: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   resetPassword: (email: string, code: string, password: string) => Promise<void>;
+  /** Account locked for safety: email a new unlock code / unlock with it (signs in) */
+  requestUnlock: (email: string) => Promise<void>;
+  unlock: (email: string, code: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   acceptTerms: () => Promise<void>;
-  updateProfile: (data: Partial<Pick<User, 'name' | 'timezone' | 'currency' | 'marketingOptIn' | 'interests'>>) => Promise<void>;
+  updateProfile: (data: Partial<Pick<User, 'name' | 'timezone' | 'currency' | 'marketingOptIn' | 'interests' | 'nudgePush' | 'nudgeEmail' | 'pushNews'>>) => Promise<void>;
+  /** Clears the session on this device (also used when the server says the session ended). */
   logout: () => Promise<void>;
+  /** The member tapped "Sign out": also stop this phone's evening nudges. */
+  signOut: () => Promise<void>;
   logoutEverywhere: () => Promise<void>;
   deleteAccount: (password: string) => Promise<void>;
 }
@@ -118,6 +125,12 @@ export const useAuth = create<AuthState>((set, getState) => {
 
     resetPassword: async (email, code, password) => signIn(await post<Session>('/auth/reset-password', { email, code, password })),
 
+    requestUnlock: async (email) => {
+      await post('/auth/unlock/request', { email });
+    },
+
+    unlock: async (email, code) => signIn(await post<Session>('/auth/unlock', { email, code })),
+
     changePassword: async (currentPassword, newPassword) =>
       signIn(await post<Session>('/auth/change-password', { currentPassword, newPassword })),
 
@@ -138,7 +151,13 @@ export const useAuth = create<AuthState>((set, getState) => {
       set({ token: null, user: null });
     },
 
+    signOut: async () => {
+      if (getState().user?.hasPushToken) await forgetPushToken();
+      await getState().logout();
+    },
+
     logoutEverywhere: async () => {
+      if (getState().user?.hasPushToken) await forgetPushToken();
       await post('/auth/logout-all');
       await getState().logout();
     },

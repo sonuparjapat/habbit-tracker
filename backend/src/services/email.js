@@ -100,6 +100,91 @@ export function sendPasswordResetCode(to, name, code) {
   });
 }
 
+const REASON_TEXT = {
+  too_many_attempts: 'there were too many wrong password attempts on it',
+  admin: 'our team noticed something unusual and wants to make sure it’s really you',
+};
+
+/** The account was locked for safety; the owner can unlock it with this code. */
+export function sendAccountLockedEmail(to, name, code, reason) {
+  const why = REASON_TEXT[reason] ?? REASON_TEXT.admin;
+  return sendEmail({
+    to,
+    subject: `Your ${config.appName} account was locked for your safety`,
+    text: `Hi ${name},
+
+We locked your account because ${why}.
+
+To unlock it, open the app, tap "Unlock my account" and enter this code: ${code}
+It expires in 15 minutes (you can ask for a new one).
+
+If this wasn't you trying to sign in, also change your password after unlocking.`,
+    html: layout(
+      'Your account was locked',
+      `Hi ${escape(name)}, we locked your account because ${escape(why)}. Nobody can sign in until it is unlocked.<br><br>To unlock it, open the app, tap <b>Unlock my account</b> and enter:${codeBlock(code)}It expires in 15 minutes — you can ask for a new one. If this wasn't you, change your password after unlocking.`,
+    ),
+  });
+}
+
+/** An admin suspended or reactivated the account. */
+export function sendAccountStatusEmail(to, name, status, reason) {
+  const suspended = status === 'suspended';
+  const support = config.email.from.email;
+  return sendEmail({
+    to,
+    subject: suspended ? `Your ${config.appName} account has been suspended` : `Your ${config.appName} account is active again`,
+    text: suspended
+      ? `Hi ${name},
+
+Your account has been suspended${reason ? `: ${reason}` : '.'}
+
+If you think this is a mistake, reply to this email.`
+      : `Hi ${name},
+
+Good news — your account is active again. You can sign in as usual.`,
+    html: suspended
+      ? layout('Your account has been suspended', `Hi ${escape(name)}, your account has been suspended${reason ? `:<br><br><i>${escape(reason)}</i>` : '.'}<br><br>If you think this is a mistake, reply to this email or write to ${escape(support)}.`)
+      : layout('Your account is active again', `Hi ${escape(name)}, good news — your account is active again. You can sign in as usual.`),
+  });
+}
+
+/** Sent after a password change, so the owner notices if it wasn't them. */
+export function sendPasswordChangedEmail(to, name) {
+  return sendEmail({
+    to,
+    subject: `Your ${config.appName} password was changed`,
+    text: `Hi ${name},
+
+Your password was just changed and you were signed out on other devices.
+
+If this wasn't you, reset your password right away with "Forgot password" in the app.`,
+    html: layout('Your password was changed', `Hi ${escape(name)}, your password was just changed and you were signed out on other devices.<br><br>If this wasn't you, reset your password right away with <b>Forgot password</b> in the app.`),
+  });
+}
+
+/** Evening check-in: the member opted in and hasn't logged these yet today. */
+export function sendNudgeEmail(to, name, missed) {
+  const list = missed.map((m) => `<li style="padding:4px 0">${escape(m)}</li>`).join('');
+  return sendEmail({
+    to,
+    subject: missed.length === 1 ? `Don’t forget today: ${missed[0]}` : `${missed.length} things left for today`,
+    text: [
+      `Hi ${name},`,
+      '',
+      'Still open today:',
+      ...missed.map((m) => `- ${m}`),
+      '',
+      'A few seconds in the app keeps your streak alive.',
+      '',
+      `Don't want these? Profile → Evening check-in in the ${config.appName} app.`,
+    ].join('\n'),
+    html: layout(
+      'Still open today',
+      `Hi ${escape(name)}, these are waiting for you:<ul style="margin:14px 0;padding-left:20px;color:#F4F6FB">${list}</ul>A few seconds in the app keeps your streak alive. 🔥<br><br><span style="font-size:12px;color:#5D6577">You get this because you switched on evening check-ins. Turn them off any time in Profile → Evening check-in.</span>`,
+    ),
+  });
+}
+
 function escape(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }

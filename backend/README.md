@@ -104,3 +104,17 @@ Add one entry to `SETTINGS` in `services/settings.js`. Set `public: true` if the
 ## Environment variables
 
 See `.env.example`. Each one is explained there. Only `DATABASE_URL` and `JWT_SECRET` are required. Email needs `BREVO_API_KEY` and `MAIL_FROM` (a sender verified in Brevo).
+
+## Security (services/security.js)
+
+| Protection | How |
+|---|---|
+| Password guessing | Rate limits per account and per IP, then an **account lock** after N wrong passwords (Admin → App settings → Security). The owner is emailed a code and unlocks it in the app (`/auth/unlock`). Resetting the password also unlocks. |
+| Mass attacks from one network | An IP failing sign-ins on many accounts is **auto-blocked** for a while. Admins can block or unblock IPs and ranges (Admin → Security). You can never block your own IP. In an emergency, run `npm run unblock-ip -- <ip>` (or `-- --all`) on the server. |
+| Flooding | At most 600 API requests per minute per IP (`API_RATE_LIMIT`). |
+| Stolen / forged sessions | Login tokens accept only HS256. Every lock, suspension, password change and "sign out everywhere" bumps `token_version`, which kills old tokens at once. |
+| Weak passwords | Common passwords, repeated characters and passwords containing the email name are refused. |
+| Account discovery | Unknown email and wrong password give the same reply and take the same time. Forgot-password and unlock requests always answer the same way. |
+| Admin decisions | **Lock**: the member can unlock it themselves by email. **Suspend**: only an admin can lift it, and the reason is shown and emailed. Everything is in the audit log. |
+| Injection | Every SQL query uses `$1` placeholders, and all input is validated with zod. Names in emails are HTML-escaped. |
+| Privacy | Admins see counts, never the content of trades, journals or expenses. Members can export or delete everything. |

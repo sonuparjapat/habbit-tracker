@@ -22,13 +22,23 @@ Notifications.setNotificationHandler({
 
 const consented = () => usePrefs.getState().remindersConsent;
 
-async function ensureChannel() {
-  if (Platform.OS === 'android')
-    await Notifications.setNotificationChannelAsync(CHANNEL, {
-      name: 'Reminders',
-      // eslint-disable-next-line import/namespace -- exported at runtime via `export *` of a types module
-      importance: Notifications.AndroidImportance.HIGH,
-    });
+/**
+ * Android notification channels — members can mute each one separately in the phone's settings:
+ *   reminders  tracker reminders + the evening check-in
+ *   updates    news & tips sent by the team (Admin → Notifications)
+ */
+export async function ensureChannel() {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(CHANNEL, {
+    name: 'Reminders',
+    // eslint-disable-next-line import/namespace -- exported at runtime via `export *` of a types module
+    importance: Notifications.AndroidImportance.HIGH,
+  });
+  await Notifications.setNotificationChannelAsync('updates', {
+    name: 'News & tips',
+    // eslint-disable-next-line import/namespace -- exported at runtime via `export *` of a types module
+    importance: Notifications.AndroidImportance.DEFAULT,
+  });
 }
 
 /** Ask the OS for permission. Only call this from an explicit user action. */

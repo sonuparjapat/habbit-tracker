@@ -4,10 +4,19 @@
 export const captured = { base: '', emails: [] };
 
 /** Call the API. Returns { status, body }. */
-export async function api(method, path, body, token) {
+export function api(method, path, body, token) {
+  return apiFrom(null, method, path, body, token);
+}
+
+/** Like api(), but as if the request came from `ip` (the API trusts one proxy hop, like on Render). */
+export async function apiFrom(ip, method, path, body, token) {
   const res = await fetch(captured.base + path, {
     method,
-    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    headers: {
+      'content-type': 'application/json',
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...(ip ? { 'x-forwarded-for': ip } : {}),
+    },
     body: body === undefined || body === null ? undefined : JSON.stringify(body),
   });
   const text = await res.text();
@@ -34,8 +43,10 @@ export const uniqueEmail = (prefix = 'user') => `${prefix}${Date.now()}${counter
 /** Sign up a new member; returns { token, user, email, password }. */
 export async function register(name = 'Tester', extra = {}) {
   const email = uniqueEmail(name.toLowerCase().replace(/\W/g, ''));
-  const password = 'password123';
-  const r = await api('POST', '/auth/register', { name, email, password, acceptTerms: true, timezone: TZ, currency: 'INR', ...extra });
+  const password = 'Steady-Habit-42';
+  // Each test member signs up from its own (simulated) network — the real limit is 30 sign-ups per IP per hour
+  const ip = `100.64.${Math.floor(counter / 250)}.${(counter % 250) + 1}`;
+  const r = await apiFrom(ip, 'POST', '/auth/register', { name, email, password, acceptTerms: true, timezone: TZ, currency: 'INR', ...extra });
   if (r.status !== 201) throw new Error(`register failed: ${JSON.stringify(r.body)}`);
   return { token: r.body.token, user: r.body.user, email, password };
 }

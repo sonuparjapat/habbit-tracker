@@ -41,6 +41,8 @@ export const config = {
   /** Public URL of this API, e.g. https://api.yourdomain.com (used in logs / links) */
   backendUrl: (env('BACKEND_URL') ?? `http://localhost:${env('PORT') ?? 4000}`).replace(/\/+$/, ''),
   corsOrigin: env('CORS_ORIGIN') ?? '*',
+  /** Max API requests per minute from one IP (generous: mobile networks share IPs) */
+  apiRateLimit: Number(env('API_RATE_LIMIT') ?? 600),
 
   databaseUrl: required('DATABASE_URL'),
   // Hosted Postgres (RDS, Neon, Supabase...) needs SSL. Default on in production unless DB_SSL=false.

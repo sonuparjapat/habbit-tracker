@@ -112,6 +112,7 @@ export default function UsersPage() {
                   </td>
                   <td>
                     <span className={`badge ${u.status === 'active' ? 'green' : 'red'}`}>{u.status}</span>
+                    {u.locked ? <span className="badge amber" style={{ marginLeft: 6 }}>🔒 locked</span> : null}
                   </td>
                   <td>{u.trackers}</td>
                   <td className="muted">{timeAgo(u.lastActiveAt)}</td>
@@ -180,8 +181,16 @@ function UserDrawer({ id, me, onClose, onChanged }) {
               <div className="row wrap">
                 <h2>{u.name}</h2>
                 <span className={`badge ${u.status === 'active' ? 'green' : 'red'}`}>{u.status}</span>
+                {u.locked ? <span className="badge amber">🔒 locked</span> : null}
                 <RoleBadge role={u.role} />
               </div>
+              {u.locked ? (
+                <div className="error" style={{ background: 'var(--amber-soft)', color: 'var(--amber)' }}>
+                  Locked {timeAgo(u.lockedAt)} — {u.lockReason === 'admin' ? 'by an admin' : 'too many wrong passwords'}. The owner can unlock it with the code we emailed.
+                </div>
+              ) : null}
+              {u.status === 'suspended' && u.suspendReason ? <div className="error">Suspended: {u.suspendReason}</div> : null}
+              {u.failedLogins ? <div className="small muted">{u.failedLogins} wrong password{u.failedLogins === 1 ? '' : 's'} in a row</div> : null}
               <div className="muted">{u.email} · {u.emailVerified ? <span style={{ color: 'var(--green)' }}>verified</span> : 'not verified'}</div>
               <div className="small muted">
                 Joined {fmtDateTime(u.createdAt)} · last active {timeAgo(u.lastActiveAt)}
@@ -253,13 +262,32 @@ function UserActions({ me, u, id, busy, act, self }) {
     <div className="stack" style={{ gap: 10, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
       <h3>Actions</h3>
       <div className="row wrap">
+        {manage && !u.locked ? (
+          <button
+            className="btn"
+            disabled={busy}
+            title="Signs them out and emails a code — they unlock it themselves"
+            onClick={() => act(() => post(`/admin/users/${id}/lock`), `Lock ${u.email} for safety?\n\nThey are signed out everywhere and emailed a code to unlock it themselves.`)}>
+            🔒 Lock (owner can unlock)
+          </button>
+        ) : null}
+        {manage && u.locked ? (
+          <button className="btn" disabled={busy} onClick={() => act(() => post(`/admin/users/${id}/unlock`))}>🔓 Unlock</button>
+        ) : null}
         {manage && u.status === 'active' ? (
-          <button className="btn" disabled={busy} onClick={() => act(() => patch(`/admin/users/${id}`, { status: 'suspended' }), `Suspend ${u.email}? They will be signed out and unable to log in.`)}>
-            Suspend
+          <button
+            className="btn"
+            disabled={busy}
+            onClick={() => {
+              const reason = window.prompt(`Suspend ${u.email}?\n\nOnly an admin can lift this. They are signed out and emailed.\nReason (shown to them, optional):`);
+              if (reason === null) return;
+              act(() => patch(`/admin/users/${id}`, { status: 'suspended', reason: reason.trim() || undefined }));
+            }}>
+            ⛔ Suspend
           </button>
         ) : null}
         {manage && u.status !== 'active' ? (
-          <button className="btn" disabled={busy} onClick={() => act(() => patch(`/admin/users/${id}`, { status: 'active' }))}>Reactivate</button>
+          <button className="btn" disabled={busy} onClick={() => act(() => patch(`/admin/users/${id}`, { status: 'active' }), `Reactivate ${u.email}? They will be emailed.`)}>✅ Reactivate</button>
         ) : null}
         {verify ? <button className="btn" disabled={busy} onClick={() => act(() => post(`/admin/users/${id}/verify-email`))}>Mark email verified</button> : null}
         {manage ? (

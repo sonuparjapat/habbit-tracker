@@ -103,3 +103,26 @@ Good premium perks that don't break the free experience:
 - forest themes
 
 On Android, digital subscriptions **must use Google Play Billing**, not Razorpay. Razorpay is fine for the website. Plan: RevenueCat (free tier) plus `react-native-purchases`, with the backend storing `members.plan`.
+
+## 6. Push notifications (evening check-in), one-time setup
+
+Email nudges work right away. **Phone** nudges on Android go through Google's Firebase, which needs this one-time setup (about 10 minutes, free):
+
+1. Go to [console.firebase.google.com](https://console.firebase.google.com), select **Add project** (any name, Analytics not needed), then **Add app → Android**. Package name: `com.anchor.discipline`.
+2. Download **`google-services.json`** and put it in the `mobile/` folder.
+3. In `mobile/app.json`, inside `"android": { … }`, add:
+   ```json
+   "googleServicesFile": "./google-services.json",
+   ```
+4. In Firebase, open **Project settings → Service accounts → Generate new private key** to download a JSON key. Keep it private and **don't** commit it.
+5. Give that key to Expo:
+   ```bash
+   cd mobile
+   npx eas-cli@latest credentials
+   ```
+   Choose **Android → production → Google Service Account → Manage your Google Service Account Key for Push Notifications (FCM V1) → Upload**, then pick the JSON from step 4. Do the same for the **preview** profile if asked.
+6. Build again. In the app, **Profile → Evening check-in → Phone notification** now works.
+
+Without these steps the app still works. The phone-notification switch just says "not available yet" and members can use the email nudge.
+
+**Admin controls:** App settings → Evening check-in (on/off, hour, email on/off). Admin → System → Evening check-in shows how many members opted in, what the last run did, and has a **Run now** button.

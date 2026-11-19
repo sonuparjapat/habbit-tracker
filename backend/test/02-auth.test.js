@@ -4,11 +4,11 @@ import { api, lastCode, settle, TZ, uniqueEmail } from './helpers.js';
 
 test('auth: sign up, verify email, passwords, export, delete', async () => {
   const email = uniqueEmail('asha');
-  let r = await api('POST', '/auth/register', { name: 'Asha', email, password: 'password123' });
+  let r = await api('POST', '/auth/register', { name: 'Asha', email, password: 'Steady-Habit-42' });
   assert.equal(r.status, 400, 'terms consent is required');
   assert.match(r.body.error.message, /Terms/);
 
-  r = await api('POST', '/auth/register', { name: 'Asha', email, password: 'password123', acceptTerms: true, timezone: TZ, currency: 'INR', interests: ['trading', 'fitness'] });
+  r = await api('POST', '/auth/register', { name: 'Asha', email, password: 'Steady-Habit-42', acceptTerms: true, timezone: TZ, currency: 'INR', interests: ['trading', 'fitness'] });
   assert.equal(r.status, 201);
   assert.equal(r.body.user.emailVerified, false);
   assert.equal(r.body.user.role, 3, 'new sign-ups are members');
@@ -16,7 +16,7 @@ test('auth: sign up, verify email, passwords, export, delete', async () => {
   assert.equal(r.body.user.interests.join(), 'trading,fitness');
   let token = r.body.token;
 
-  r = await api('POST', '/auth/register', { name: 'Asha', email, password: 'password123', acceptTerms: true });
+  r = await api('POST', '/auth/register', { name: 'Asha', email, password: 'Steady-Habit-42', acceptTerms: true });
   assert.equal(r.status, 409, 'duplicate email rejected');
 
   // Email verification
@@ -33,7 +33,7 @@ test('auth: sign up, verify email, passwords, export, delete', async () => {
   // Sign in
   r = await api('POST', '/auth/login', { email, password: 'nope' });
   assert.equal(r.status, 401);
-  r = await api('POST', '/auth/login', { email: email.toUpperCase(), password: 'password123' });
+  r = await api('POST', '/auth/login', { email: email.toUpperCase(), password: 'Steady-Habit-42' });
   assert.equal(r.status, 200, 'email is case-insensitive');
 
   // Profile
@@ -42,7 +42,7 @@ test('auth: sign up, verify email, passwords, export, delete', async () => {
   assert.equal(r.body.user.name, 'Asha K');
 
   // Change password ends other sessions
-  r = await api('POST', '/auth/change-password', { currentPassword: 'password123', newPassword: 'newpassword1' }, token);
+  r = await api('POST', '/auth/change-password', { currentPassword: 'Steady-Habit-42', newPassword: 'newpassword1' }, token);
   assert.equal(r.status, 200);
   const oldToken = token;
   token = r.body.token;

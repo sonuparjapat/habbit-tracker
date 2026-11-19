@@ -40,6 +40,11 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       else await register({ name: name.trim(), email: email.trim(), password, acceptTerms, marketingOptIn: marketing, interests });
       setDone(true);
     } catch (e: any) {
+      // Locked for safety → straight to the unlock screen (the code is already in their inbox)
+      if (e?.code === 'ACCOUNT_LOCKED') {
+        router.push({ pathname: '/unlock', params: { email: email.trim() } });
+        return;
+      }
       setError(e?.message ?? 'Something went wrong');
     } finally {
       setLoading(false);

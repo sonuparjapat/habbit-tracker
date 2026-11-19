@@ -43,6 +43,50 @@ export const SETTINGS = {
   feature_gamification: { group: 'Features', label: 'XP, levels & badges', type: 'boolean', default: true, public: true },
   ads_enabled: { group: 'Features', label: 'Show ads', type: 'boolean', default: false, public: true, description: 'Only works once AdMob is set up in the app build.' },
 
+  // Security (see services/security.js)
+  security_lock_after: {
+    group: 'Security',
+    label: 'Lock an account after this many wrong passwords in a row',
+    type: 'number',
+    default: 8,
+    min: 3,
+    max: 50,
+    public: false,
+    description: 'The owner gets an email with a code to unlock it (or can reset the password).',
+  },
+  security_ip_block_after: {
+    group: 'Security',
+    label: 'Block an IP after this many failed sign-ins in 15 minutes',
+    type: 'number',
+    default: 50,
+    min: 10,
+    max: 1000,
+    public: false,
+    description: 'Counts failures on all accounts. Keep it high: many people can share one mobile-network IP.',
+  },
+  security_ip_block_minutes: { group: 'Security', label: 'Automatic IP block lasts (minutes)', type: 'number', default: 60, min: 5, max: 1440, public: false },
+
+  // Evening check-in (see services/nudges.js)
+  nudge_enabled: {
+    group: 'Evening check-in',
+    label: 'Evening check-in',
+    type: 'boolean',
+    default: true,
+    public: true,
+    description: 'Nudges members who opted in and missed a tracker with a reminder today. Members who already logged are never disturbed.',
+  },
+  nudge_hour: {
+    group: 'Evening check-in',
+    label: 'Check at (hour, member’s local time)',
+    type: 'number',
+    default: 20,
+    min: 0,
+    max: 23,
+    public: true,
+    description: '20 = 8 PM. Each member is checked once a day, at this hour in their own timezone.',
+  },
+  nudge_email_enabled: { group: 'Evening check-in', label: 'Also send email nudges', type: 'boolean', default: true, public: false, description: 'Only to verified emails of members who switched email nudges on.' },
+
   // Look & feel
   default_theme: {
     group: 'Look & feel',

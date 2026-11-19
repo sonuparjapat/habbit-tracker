@@ -37,6 +37,7 @@ Object.assign(process.env, {
   JWT_SECRET: 'test-secret-that-is-at-least-32-characters-long',
   EMAIL_PROVIDER: 'console',
   MAIL_FROM: 'Anchor <no-reply@test.local>',
+  API_RATE_LIMIT: '100000', // the whole suite runs from one IP
 });
 
 // Capture emails printed by the console email provider (the tests read codes from them)

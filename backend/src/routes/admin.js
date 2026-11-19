@@ -6,7 +6,9 @@
  *   GET    /api/admin/overview                  counts for the dashboard
  *   GET    /api/admin/users                     search / filter / page through members
  *   GET    /api/admin/users/:id                 one member
- *   PATCH  /api/admin/users/:id                 change role, suspend / unsuspend
+ *   PATCH  /api/admin/users/:id                 change role, suspend (with a reason) / reactivate — the member is emailed
+ *   POST   /api/admin/users/:id/lock            lock for safety: signed out, emailed a code to unlock it themself
+ *   POST   /api/admin/users/:id/unlock          unlock a locked account
  *   POST   /api/admin/users/:id/logout          sign them out everywhere
  *   POST   /api/admin/users/:id/verify-email    mark their email verified
  *   DELETE /api/admin/users/:id                 delete the account
@@ -24,6 +26,8 @@ import { HttpError, isUuid, parse } from '../middleware/errors.js';
 import { audit } from '../services/audit.js';
 import { CATEGORY_KEYS } from '../services/catalog.js';
 import { can, PERMISSIONS, ROLE_NAMES, ROLES } from '../services/roles.js';
+import { sendAccountStatusEmail } from '../services/email.js';
+import { lockAccount, unlockAccount } from '../services/security.js';
 import { parseConfig } from '../services/trackerConfig.js';
 
 export const adminRouter = Router();
@@ -110,6 +114,7 @@ adminRouter.get('/users', requirePermission(P.USERS_VIEW), async (req, res) => {
       `SELECT u.id, u.email, u.name, u.role, u.status, u.timezone, u.currency,
               (u.email_verified_at IS NOT NULL) AS "emailVerified", u.created_at AS "createdAt",
               u.last_active_at AS "lastActiveAt",
+              (u.locked_at IS NOT NULL) AS "locked",
               (SELECT count(*) FROM trackers t WHERE t.user_id = u.id) AS trackers
          FROM members u ${whereSql}
         ORDER BY u.created_at DESC LIMIT ${q.limit} OFFSET ${(q.page - 1) * q.limit}`,
@@ -122,7 +127,12 @@ adminRouter.get('/users', requirePermission(P.USERS_VIEW), async (req, res) => {
 
 async function getUser(id) {
   if (!isUuid(id)) throw new HttpError(404, 'User not found', 'NOT_FOUND');
-  const { rows } = await query(`SELECT ${USER_FIELDS}, last_active_at AS "lastActiveAt" FROM members WHERE id = $1`, [id]);
+  const { rows } = await query(
+    `SELECT ${USER_FIELDS}, last_active_at AS "lastActiveAt", locked_at AS "lockedAt", lock_reason AS "lockReason",
+            suspend_reason AS "suspendReason", failed_logins AS "failedLogins"
+       FROM members WHERE id = $1`,
+    [id],
+  );
   if (!rows[0]) throw new HttpError(404, 'User not found', 'NOT_FOUND');
   return rows[0];
 }
@@ -146,17 +156,49 @@ adminRouter.get('/users/:id', requirePermission(P.USERS_VIEW), async (req, res) 
 adminRouter.patch('/users/:id', requirePermission(P.USERS_MANAGE), async (req, res) => {
   const user = await getUser(req.params.id);
   // Role 1 (super admin) can never be granted through the API
-  const body = parse(z.object({ status: z.enum(['active', 'suspended']).optional(), role: z.union([z.literal(ROLES.ADMIN), z.literal(ROLES.USER)]).optional() }), req.body);
+  const body = parse(
+    z.object({
+      status: z.enum(['active', 'suspended']).optional(),
+      /** Shown to the member (email + sign-in screen) when suspending */
+      reason: z.string().trim().max(300).optional(),
+      role: z.union([z.literal(ROLES.ADMIN), z.literal(ROLES.USER)]).optional(),
+    }),
+    req.body,
+  );
   assertCanActOn(req, user);
   if (body.role !== undefined && body.role !== user.role && !can(req.user.role, P.ADMINS_MANAGE))
     throw new HttpError(403, 'Only a super admin can change roles', 'FORBIDDEN');
+  const statusChanged = body.status !== undefined && body.status !== user.status;
   await query(
     `UPDATE members SET status = COALESCE($2, status), role = COALESCE($3, role), updated_at = now(),
+       suspend_reason = CASE WHEN $2 = 'suspended' THEN $4 WHEN $2 = 'active' THEN NULL ELSE suspend_reason END,
        token_version = token_version + CASE WHEN $2 = 'suspended' THEN 1 ELSE 0 END
      WHERE id = $1`,
-    [user.id, body.status ?? null, body.role ?? null],
+    [user.id, body.status ?? null, body.role ?? null, body.reason || null],
   );
+  // Tell the member (never blocks the admin action if email fails)
+  if (statusChanged) {
+    await sendAccountStatusEmail(user.email, user.name, body.status, body.reason).catch((err) => console.error('status email failed:', err.message));
+  }
   await audit(req, 'user.update', 'user', user.id, { email: user.email, ...body, ...(body.role ? { role: ROLE_NAMES[body.role] } : {}) });
+  res.json({ user: await getUser(user.id) });
+});
+
+/** Lock for safety — the member is signed out everywhere and emailed a code to unlock it themself. */
+adminRouter.post('/users/:id/lock', requirePermission(P.USERS_MANAGE), async (req, res) => {
+  const user = await getUser(req.params.id);
+  assertCanActOn(req, user);
+  if (user.locked) throw new HttpError(400, 'This account is already locked', 'ALREADY_LOCKED');
+  await lockAccount(user.id, 'admin', { ip: req.ip, by: req.user.email });
+  await audit(req, 'user.lock', 'user', user.id, { email: user.email });
+  res.json({ user: await getUser(user.id) });
+});
+
+adminRouter.post('/users/:id/unlock', requirePermission(P.USERS_MANAGE), async (req, res) => {
+  const user = await getUser(req.params.id);
+  assertCanActOn(req, user, { allowSelf: true });
+  await unlockAccount(user.id, { ip: req.ip, by: req.user.email });
+  await audit(req, 'user.unlock', 'user', user.id, { email: user.email });
   res.json({ user: await getUser(user.id) });
 });
 

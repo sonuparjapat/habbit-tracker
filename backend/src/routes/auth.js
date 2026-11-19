@@ -2,7 +2,9 @@
  * Accounts: sign up, sign in, email verification, passwords and the member's own profile.
  *
  *   POST   /api/auth/register              create an account (sends a 6-digit email code)
- *   POST   /api/auth/login                 sign in → { token, user }
+ *   POST   /api/auth/login                 sign in → { token, user }  (423 ACCOUNT_LOCKED if locked for safety)
+ *   POST   /api/auth/unlock/request        email a new unlock code to a locked account
+ *   POST   /api/auth/unlock                unlock my account with the emailed code → { token, user }
  *   POST   /api/auth/verify-email          confirm the email with the 6-digit code
  *   POST   /api/auth/resend-verification   send a new code
  *   POST   /api/auth/forgot-password       email a reset code (same reply whether or not the email exists)
@@ -10,7 +12,8 @@
  *   POST   /api/auth/change-password       change password while signed in
  *   POST   /api/auth/logout-all            sign out on every device (bumps token_version)
  *   GET    /api/auth/me                    my profile
- *   PATCH  /api/auth/me                    edit name, timezone, currency, interests…
+ *   PATCH  /api/auth/me                    edit name, timezone, currency, interests, evening check-in…
+ *   PUT    /api/auth/me/push-token         save (or clear, with null) this phone's push token
  *   POST   /api/auth/accept-terms          accept the latest terms
  *   GET    /api/auth/me/export             download all my data (JSON)
  *   DELETE /api/auth/me                    delete my account and all its data
@@ -28,8 +31,10 @@ import { publicUser, requireAuth, signToken, USER_FIELDS } from '../middleware/a
 import { HttpError, parse } from '../middleware/errors.js';
 import { CATEGORY_KEYS } from '../services/catalog.js';
 import { consumeCode, createCode } from '../services/codes.js';
-import { sendPasswordResetCode, sendVerificationCode } from '../services/email.js';
+import { sendAccountLockedEmail, sendPasswordChangedEmail, sendPasswordResetCode, sendVerificationCode } from '../services/email.js';
+import { isExpoPushToken } from '../services/push.js';
 import { ROLES } from '../services/roles.js';
+import { assertStrongPassword, onFailedLogin, onSuccessfulLogin, recordEvent, unlockAccount } from '../services/security.js';
 import { getSettings } from '../services/settings.js';
 import { isValidTimeZone } from '../utils/date.js';
 
@@ -111,6 +116,7 @@ authRouter.post('/register', ipCeiling, signupPerIp, async (req, res) => {
   if (settings.maintenance_mode) throw new HttpError(503, settings.maintenance_message, 'MAINTENANCE');
   if (!settings.signups_enabled) throw new HttpError(403, 'New sign-ups are paused right now. Please try again later.', 'SIGNUPS_CLOSED');
   const body = parse(registerSchema, req.body);
+  assertStrongPassword(body.password, body.email);
   const hash = await bcrypt.hash(body.password, 12);
   let user;
   try {
@@ -136,17 +142,66 @@ authRouter.post('/register', ipCeiling, signupPerIp, async (req, res) => {
   res.status(201).json(session(user));
 });
 
+const LOCKED_MESSAGE = 'Your account is locked for your safety. We emailed you a code to unlock it.';
+
+/**
+ * POST /api/auth/login
+ * Order matters:
+ *   1. Always run bcrypt (even for unknown emails) so the reply time doesn't reveal which accounts exist.
+ *   2. A locked account says so whatever the password was — so a lock can't be used to test guesses.
+ *   3. Wrong password → counted (may lock the account / block the IP). Same message for unknown emails.
+ *   4. Suspended by an admin → told so (only after the right password, so it doesn't leak to strangers).
+ */
 authRouter.post('/login', ipCeiling, loginPerIpAccount, loginPerAccount, async (req, res) => {
-  const body = parse(z.object({ email: z.string().trim().toLowerCase(), password: z.string().min(1) }), req.body);
-  const { rows } = await query('SELECT id, password_hash, status FROM members WHERE email = $1', [body.email]);
-  const row = rows[0];
-  // Same message for unknown email and wrong password (don't reveal which accounts exist)
-  const passwordOk = await bcrypt.compare(body.password, row?.password_hash ?? DUMMY_HASH);
-  if (!row || !passwordOk)
+  const body = parse(z.object({ email: z.string().trim().toLowerCase().max(254), password: z.string().min(1).max(128) }), req.body);
+  const { rows } = await query('SELECT id, password_hash, status, locked_at, suspend_reason FROM members WHERE email = $1', [body.email]);
+  const member = rows[0];
+  const passwordOk = await bcrypt.compare(body.password, member?.password_hash ?? DUMMY_HASH);
+
+  if (member?.locked_at) throw new HttpError(423, LOCKED_MESSAGE, 'ACCOUNT_LOCKED');
+
+  if (!member || !passwordOk) {
+    const lockedNow = await onFailedLogin({ ip: req.ip, member, email: body.email });
+    if (lockedNow) throw new HttpError(423, LOCKED_MESSAGE, 'ACCOUNT_LOCKED');
     throw new HttpError(401, 'Wrong email or password', 'BAD_CREDENTIALS');
-  if (row.status !== 'active') throw new HttpError(403, 'This account has been suspended. Contact support.', 'SUSPENDED');
-  await query('UPDATE members SET last_active_at = now() WHERE id = $1', [row.id]);
-  res.json(session(await loadUser(row.id)));
+  }
+
+  if (member.status !== 'active') {
+    const why = member.suspend_reason ? ` Reason: ${member.suspend_reason}` : '';
+    throw new HttpError(403, `This account has been suspended.${why} Contact support if you think this is a mistake.`, 'SUSPENDED');
+  }
+  await onSuccessfulLogin(member.id);
+  res.json(session(await loadUser(member.id)));
+});
+
+/* ------------------------------ Account unlock ------------------------------ */
+
+/** POST /api/auth/unlock/request — email a fresh unlock code (same reply whether or not the account exists / is locked). */
+authRouter.post('/unlock/request', ipCeiling, emailPerAddress, async (req, res) => {
+  const body = parse(z.object({ email }), req.body);
+  const { rows } = await query('SELECT id, name, locked_at, lock_reason FROM members WHERE email = $1', [body.email]);
+  if (rows[0]?.locked_at) {
+    try {
+      const c = await createCode(rows[0].id, 'unlock');
+      await safeSend(() => sendAccountLockedEmail(body.email, rows[0].name, c, rows[0].lock_reason));
+    } catch (err) {
+      if (err.code !== 'TOO_SOON') throw err;
+    }
+  }
+  res.json({ ok: true, message: 'If this account is locked, we’ve emailed a new unlock code.' });
+});
+
+/** POST /api/auth/unlock — the owner proves it's them with the emailed code; the account unlocks and they're signed in. */
+authRouter.post('/unlock', ipCeiling, emailPerAddress, async (req, res) => {
+  const body = parse(z.object({ email, code }), req.body);
+  const { rows } = await query('SELECT id, status, locked_at FROM members WHERE email = $1', [body.email]);
+  const member = rows[0];
+  if (!member?.locked_at) throw new HttpError(400, 'This code has expired. Request a new one.', 'CODE_EXPIRED');
+  await consumeCode(member.id, 'unlock', body.code);
+  await unlockAccount(member.id, { ip: req.ip });
+  // Unlocking proves the email, but an admin suspension still stands
+  if (member.status !== 'active') throw new HttpError(403, 'Your account is unlocked, but it has been suspended by our team. Contact support.', 'SUSPENDED');
+  res.json(session(await loadUser(member.id)));
 });
 
 /* ------------------------------ Email verification ------------------------------ */
@@ -188,14 +243,17 @@ authRouter.post('/forgot-password', ipCeiling, emailPerAddress, async (req, res)
 
 authRouter.post('/reset-password', ipCeiling, emailPerAddress, async (req, res) => {
   const body = parse(z.object({ email, code, password }), req.body);
+  assertStrongPassword(body.password, body.email);
   const { rows } = await query('SELECT id FROM members WHERE email = $1 AND status = $2', [body.email, 'active']);
   if (!rows[0]) throw new HttpError(400, 'This code has expired. Request a new one.', 'CODE_EXPIRED');
   await consumeCode(rows[0].id, 'reset', body.code);
   await query(
-    `UPDATE members SET password_hash = $2, token_version = token_version + 1,
+    // Resetting the password with an emailed code proves ownership, so it also unlocks a locked account
+    `UPDATE members SET password_hash = $2, token_version = token_version + 1, locked_at = NULL, lock_reason = NULL, failed_logins = 0,
        email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = $1`,
     [rows[0].id, await bcrypt.hash(body.password, 12)],
   );
+  await recordEvent('password_reset', { ip: req.ip, userId: rows[0].id, email: body.email });
   res.json(session(await loadUser(rows[0].id)));
 });
 
@@ -204,10 +262,14 @@ authRouter.post('/change-password', requireAuth, perUser(10), async (req, res) =
   const { rows } = await query('SELECT password_hash FROM members WHERE id = $1', [req.user.id]);
   if (!(await bcrypt.compare(body.currentPassword, rows[0].password_hash)))
     throw new HttpError(400, 'Current password is not correct', 'BAD_PASSWORD');
+  if (body.newPassword === body.currentPassword) throw new HttpError(400, 'Choose a password different from your current one', 'SAME_PASSWORD');
+  assertStrongPassword(body.newPassword, req.user.email);
   await query('UPDATE members SET password_hash = $2, token_version = token_version + 1, updated_at = now() WHERE id = $1', [
     req.user.id,
     await bcrypt.hash(body.newPassword, 12),
   ]);
+  await recordEvent('password_changed', { ip: req.ip, userId: req.user.id, email: req.user.email });
+  await safeSend(() => sendPasswordChangedEmail(req.user.email, req.user.name));
   // Other devices are signed out; this one gets a fresh token
   res.json(session(await loadUser(req.user.id)));
 });
@@ -234,19 +296,46 @@ const updateSchema = z.object({
   currency: currency.optional(),
   marketingOptIn: z.boolean().optional(),
   interests: interests.optional(),
+  /** Evening check-in: phone notification / email when a tracker was missed */
+  nudgePush: z.boolean().optional(),
+  nudgeEmail: z.boolean().optional(),
+  /** News & tips notifications sent by the team */
+  pushNews: z.boolean().optional(),
 });
 
 authRouter.patch('/me', requireAuth, async (req, res) => {
   const body = parse(updateSchema, req.body);
   await query(
     `UPDATE members SET name = COALESCE($2, name), timezone = COALESCE($3, timezone), currency = COALESCE($4, currency),
-       marketing_opt_in = COALESCE($5, marketing_opt_in), interests = COALESCE($6, interests), updated_at = now()
+       marketing_opt_in = COALESCE($5, marketing_opt_in), interests = COALESCE($6, interests),
+       nudge_push = COALESCE($7, nudge_push), nudge_email = COALESCE($8, nudge_email),
+       push_news = COALESCE($9, push_news), updated_at = now()
      WHERE id = $1`,
-    [req.user.id, body.name ?? null, body.timezone ?? null, body.currency ?? null, body.marketingOptIn ?? null, body.interests ?? null],
+    [
+      req.user.id,
+      body.name ?? null,
+      body.timezone ?? null,
+      body.currency ?? null,
+      body.marketingOptIn ?? null,
+      body.interests ?? null,
+      body.nudgePush ?? null,
+      body.nudgeEmail ?? null,
+      body.pushNews ?? null,
+    ],
   );
   if (body.marketingOptIn !== undefined && body.marketingOptIn !== req.user.marketingOptIn)
     await query(`INSERT INTO consents (user_id, kind, granted) VALUES ($1, 'marketing', $2)`, [req.user.id, body.marketingOptIn]);
   res.json({ user: publicUser(stripTv(await loadUser(req.user.id))) });
+});
+
+/** PUT /api/auth/me/push-token — the app sends its Expo push token (or null when signing out). */
+authRouter.put('/me/push-token', requireAuth, async (req, res) => {
+  const { token } = parse(
+    z.object({ token: z.string().max(200).refine(isExpoPushToken, 'Not an Expo push token').nullable() }),
+    req.body,
+  );
+  await query('UPDATE members SET push_token = $2, updated_at = now() WHERE id = $1', [req.user.id, token]);
+  res.status(204).end();
 });
 
 /** Re-accept after the Terms / Privacy Policy change. */

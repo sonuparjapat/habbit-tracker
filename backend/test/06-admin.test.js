@@ -109,9 +109,9 @@ test('admin settings: validated, public ones reach the app, can be reset', async
   assert.equal(r.status, 503);
   assert.equal(r.body.error.message, 'Back at 6pm');
   ok(await api('GET', '/dashboard', null, staff), 200);
-  assert.equal((await api('POST', '/auth/register', { name: 'X', email: 'x1@t.local', password: 'password123', acceptTerms: true })).status, 503);
+  assert.equal((await api('POST', '/auth/register', { name: 'X', email: 'x1@t.local', password: 'Steady-Habit-42', acceptTerms: true })).status, 503);
   ok(await api('PUT', '/admin/settings', { values: { maintenance_mode: false, signups_enabled: false } }, boss));
-  r = await api('POST', '/auth/register', { name: 'X', email: 'x2@t.local', password: 'password123', acceptTerms: true });
+  r = await api('POST', '/auth/register', { name: 'X', email: 'x2@t.local', password: 'Steady-Habit-42', acceptTerms: true });
   assert.equal(r.body.error.code, 'SIGNUPS_CLOSED');
   for (const key of ['maintenance_mode', 'maintenance_message', 'signups_enabled']) ok(await api('DELETE', `/admin/settings/${key}`, null, boss), 204);
   assert.equal((await api('GET', '/config')).body.settings.signups_enabled, true);
