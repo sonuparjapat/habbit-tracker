@@ -38,10 +38,10 @@ export default function DashboardPage() {
       </PageHeader>
 
       <div className="grid grid-4">
-        <StatCard label="Members" value={u.total} sub={`+${u.new7d} this week · +${u.new30d} this month`} onClick={go('/admin/users', P.USERS_VIEW)} />
-        <StatCard label="Active today" value={u.active1d} sub={`${u.active7d} this week · ${u.active30d} this month`} />
-        <StatCard label="30-day retention" value={an?.retention.rate != null ? `${an.retention.rate}%` : '—'} sub={an ? `${an.retention.retained} of ${an.retention.cohort} who joined 8–37 days ago are still active` : ''} />
-        <StatCard label="New feedback" value={an?.feedback.new ?? '—'} sub={an ? `${an.feedback.total} total` : ''} onClick={go('/admin/feedback', P.FEEDBACK_MANAGE)} />
+        <StatCard icon="👥" accent="violet" label="Members" value={u.total} sub={`+${u.new7d} this week · +${u.new30d} this month`} onClick={go('/admin/users', P.USERS_VIEW)} />
+        <StatCard icon="⚡" accent="green" label="Active today" value={u.active1d} sub={`${u.active7d} this week · ${u.active30d} this month`} />
+        <StatCard icon="🔁" accent="blue" label="30-day retention" value={an?.retention.rate != null ? `${an.retention.rate}%` : '—'} sub={an ? `${an.retention.retained} of ${an.retention.cohort} who joined 8–37 days ago are still active` : ''} />
+        <StatCard icon="✉️" accent="amber" label="New feedback" value={an?.feedback.new ?? '—'} sub={an ? `${an.feedback.total} total` : ''} onClick={go('/admin/feedback', P.FEEDBACK_MANAGE)} />
       </div>
 
       <div className="grid grid-2">
@@ -71,11 +71,16 @@ export default function DashboardPage() {
         </Section>
       </div>
 
+      <Section title="Rules broken most · 30 days">
+        <p className="small muted" style={{ marginTop: -8 }}>Where members struggle — use it to write tips, announcements or better templates.</p>
+        {an ? <Bars color="var(--red)" items={(an.ruleBreaks ?? []).map((b) => ({ label: b.label, value: b.n }))} /> : <Spinner />}
+      </Section>
+
       <div className="grid grid-4">
-        <StatCard label="Verified email" value={pct(u.verified, u.total)} sub={`${u.verified} members · ${u.suspended} suspended · ${u.staff} staff`} />
-        <StatCard label="Check-ins" value={activity.checkins} sub={`${activity.checkins1d} in the last 24h`} />
-        <StatCard label="Trades · Expenses" value={`${activity.trades} · ${activity.expenses}`} />
-        <StatCard label="Rule breaks recorded" value={activity.rule_breaks} sub={`${u.marketing} members opted into emails`} />
+        <StatCard icon="✅" accent="green" label="Verified email" value={pct(u.verified, u.total)} sub={`${u.verified} members · ${u.suspended} suspended · ${u.staff} staff`} />
+        <StatCard icon="📅" accent="violet" label="Check-ins" value={activity.checkins} sub={`${activity.checkins1d} in the last 24h`} />
+        <StatCard icon="📈" accent="blue" label="Trades · Expenses" value={`${activity.trades} · ${activity.expenses}`} />
+        <StatCard icon="🛡️" accent="red" label="Rule breaks recorded" value={activity.rule_breaks} sub={`${u.marketing} members opted into emails`} />
       </div>
     </div>
   );

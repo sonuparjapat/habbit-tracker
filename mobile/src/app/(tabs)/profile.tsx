@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Alert, Platform, Pressable, Share, View } from 'react-native';
 import { AdSlot } from '@/components/AdSlot';
 import { GuestPrompt } from '@/components/guest';
-import { Card, Chip, Icon, Input, Row, Screen, SectionTitle, ToggleRow, Txt, Button } from '@/components/ui';
+import { Button, Card, Chip, Icon, Input, Row, Screen, SectionTitle, Segmented, ToggleRow, Txt } from '@/components/ui';
 import { API_URL, get } from '@/lib/api';
 import { deviceCurrency, deviceTimeZone, useAuth } from '@/lib/auth';
 import { CATEGORIES } from '@/lib/catalog';
@@ -45,6 +45,28 @@ function LinkRow({ icon, label, onPress, color = colors.text }: { icon: string; 
   );
 }
 
+/** Light / dark / follow the phone. Until the member picks, the admin's default is shown as selected. */
+function Appearance() {
+  const pref = usePrefs((s) => s.theme);
+  const adminTheme = usePrefs((s) => s.adminTheme);
+  const update = usePrefs((s) => s.update);
+  const value = pref === 'default' ? adminTheme : pref;
+  return (
+    <>
+      <SectionTitle>Appearance</SectionTitle>
+      <Segmented
+        options={[
+          { value: 'light', label: '☀️ Light' },
+          { value: 'dark', label: '🌙 Dark' },
+          { value: 'system', label: '📱 Auto' },
+        ]}
+        value={value}
+        onChange={(v) => void update({ theme: v })}
+      />
+    </>
+  );
+}
+
 const Divider = () => <View style={{ height: 1, backgroundColor: colors.border }} />;
 
 export default function Profile() {
@@ -62,6 +84,7 @@ export default function Profile() {
         <Txt variant="title" style={{ marginBottom: 6 }}>Profile</Txt>
         <Txt variant="caption" style={{ marginBottom: 24 }}>You’re browsing as a guest.</Txt>
         <GuestPrompt icon="account-circle-outline" title="Make it yours" message="An account keeps your rules, streaks and history safe, and syncs them across devices." />
+        <Appearance />
         <SectionTitle>About</SectionTitle>
         <Card padded={false} style={{ paddingHorizontal: 20 }}>
           <LinkRow icon="shield-account-outline" label="Privacy Policy" onPress={() => router.push('/legal/privacy' as Href)} />
@@ -134,6 +157,20 @@ export default function Profile() {
       {settings.feature_gamification ? (
         <Card padded={false} style={{ paddingHorizontal: 20, marginTop: 16 }}>
           <LinkRow icon="trophy-outline" label="Level & badges" onPress={() => router.push('/achievements' as Href)} />
+          <Divider />
+          <LinkRow icon="pine-tree" label="Your forest" onPress={() => router.push('/forest' as Href)} />
+        </Card>
+      ) : null}
+      {settings.tour_enabled ? (
+        <Card padded={false} style={{ paddingHorizontal: 20, marginTop: 16 }}>
+          <LinkRow
+            icon="map-marker-path"
+            label="Replay app tour"
+            onPress={() => {
+              void usePrefs.getState().update({ tourDone: false });
+              router.navigate('/');
+            }}
+          />
         </Card>
       ) : null}
 
@@ -169,6 +206,8 @@ export default function Profile() {
           <Chip key={c.key} label={c.label} selected={user.interests.includes(c.key)} color={c.color} onPress={() => toggleInterest(c.key)} />
         ))}
       </Row>
+
+      <Appearance />
 
       <SectionTitle>Privacy & notifications</SectionTitle>
       <Card style={{ gap: 6 }}>

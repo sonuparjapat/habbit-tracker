@@ -1,28 +1,59 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
-import { DarkTheme, router, Stack, ThemeProvider, type Href } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider, type Href } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import * as SystemUI from 'expo-system-ui';
+import { useEffect, type ReactNode } from 'react';
+import { Platform, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppGates } from '@/components/gates';
 import { useAuth } from '@/lib/auth';
+import { useAppConfig } from '@/lib/config';
 import { scheduleReminders } from '@/lib/notifications';
 import { usePrefs } from '@/lib/prefs';
 import { useTrackers } from '@/lib/queries';
 import { queryClient } from '@/lib/queryClient';
-import { colors } from '@/theme';
+import { applyTheme, colors, type ThemeMode } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // The home tabs are the base of the app: sign-in and other sheets always open on top of them.
 export const unstable_settings = { anchor: '(tabs)' };
 
-const navTheme = {
-  ...DarkTheme,
-  colors: { ...DarkTheme.colors, background: colors.bg, card: colors.bg, primary: colors.primary, border: colors.border },
-};
+function navTheme(mode: ThemeMode) {
+  const base = mode === 'dark' ? DarkTheme : DefaultTheme;
+  return { ...base, colors: { ...base.colors, background: colors.bg, card: colors.bg, text: colors.text, primary: colors.primary, border: colors.border } };
+}
+
+/**
+ * Light / dark mode. The member's choice (Profile → Appearance) wins; otherwise the admin's
+ * default (Admin → App settings → Default app theme). Switching remounts the screens so every
+ * colour is re-read.
+ */
+function ThemeGate({ children }: { children: (mode: ThemeMode) => ReactNode }) {
+  const pref = usePrefs((s) => s.theme);
+  const cachedDefault = usePrefs((s) => s.adminTheme);
+  const update = usePrefs((s) => s.update);
+  const { settings } = useAppConfig();
+  const system = useColorScheme();
+  const adminDefault = settings.default_theme;
+
+  // Remember the admin default so the next launch starts in the right theme without a flash
+  useEffect(() => {
+    if (adminDefault && adminDefault !== cachedDefault) void update({ adminTheme: adminDefault });
+  }, [adminDefault, cachedDefault, update]);
+
+  const wanted = pref === 'default' ? (adminDefault ?? cachedDefault) : pref;
+  const mode: ThemeMode = wanted === 'system' ? (system === 'light' ? 'light' : 'dark') : wanted;
+  applyTheme(mode);
+
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(colors.bg).catch(() => {});
+  }, [mode]);
+
+  return children(mode);
+}
 
 /** Keeps local reminders in sync with the user's trackers (only if the user opted in). */
 function ReminderSync() {
@@ -69,59 +100,65 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider value={navTheme}>
-          <StatusBar style="light" />
-          {token ? <ReminderSync /> : null}
-          <AppGates>
-          <Stack
-            screenOptions={{
-              headerStyle: { backgroundColor: colors.bg },
-              headerTintColor: colors.text,
-              headerTitleStyle: { fontWeight: '700' },
-              headerShadowVisible: false,
-              contentStyle: { backgroundColor: colors.bg },
-              headerBackButtonDisplayMode: 'minimal',
-            }}>
-            {/*
-              Every Protected group names its redirect target explicitly. Without redirectTo,
-              Expo Router falls back to the first unguarded route in *alphabetical file order*
-              (which is the login screen) — exactly the "app opens on login" bug.
-            */}
-            <Stack.Protected guard={showOnboarding} redirectTo="/">
-              <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
-            </Stack.Protected>
+        <ThemeGate>
+          {(mode) => (
+            <ThemeProvider value={navTheme(mode)} key={mode}>
+              <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+              {token ? <ReminderSync /> : null}
+              <AppGates>
+                <Stack
+                  screenOptions={{
+                    headerStyle: { backgroundColor: colors.bg },
+                    headerTintColor: colors.text,
+                    headerTitleStyle: { fontWeight: '700' },
+                    headerShadowVisible: false,
+                    contentStyle: { backgroundColor: colors.bg },
+                    headerBackButtonDisplayMode: 'minimal',
+                  }}>
+                  {/*
+                    Every Protected group names its redirect target explicitly. Without redirectTo,
+                    Expo Router falls back to the first unguarded route in *alphabetical file order*
+                    (which is the login screen) — exactly the "app opens on login" bug.
+                  */}
+                  <Stack.Protected guard={showOnboarding} redirectTo="/">
+                    <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
+                  </Stack.Protected>
 
-            <Stack.Protected guard={!showOnboarding} redirectTo="/onboarding">
-              {/* Open to everyone: guests can browse the app */}
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack.Protected>
+                  <Stack.Protected guard={!showOnboarding} redirectTo="/onboarding">
+                    {/* Open to everyone: guests can browse the app */}
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  </Stack.Protected>
 
-            {/* Always reachable */}
-            <Stack.Screen name="login" options={{ headerShown: false, ...modal }} />
-            <Stack.Screen name="register" options={{ headerShown: false, ...modal }} />
-            <Stack.Screen name="forgot-password" options={{ title: 'Reset password', ...modal }} />
-            <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
-            <Stack.Screen name="feedback" options={{ title: 'Send feedback', ...modal }} />
+                  {/* Always reachable */}
+                  <Stack.Screen name="login" options={{ headerShown: false, ...modal }} />
+                  <Stack.Screen name="register" options={{ headerShown: false, ...modal }} />
+                  <Stack.Screen name="forgot-password" options={{ title: 'Reset password', ...modal }} />
+                  <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
+                  <Stack.Screen name="feedback" options={{ title: 'Send feedback', ...modal }} />
 
-            {/* Your data: only when signed in. Guests reach these via goProtected() (sign-in sheet first);
-                if one is opened any other way (deep link, notification, signing out), go home — never to a login wall. */}
-            <Stack.Protected guard={!!token} redirectTo={showOnboarding ? '/onboarding' : '/'}>
-              <Stack.Screen name="verify-email" options={{ title: 'Verify email', ...modal }} />
-              <Stack.Screen name="achievements" options={{ title: 'Level & badges' }} />
-              <Stack.Screen name="account/password" options={{ title: 'Change password', ...modal }} />
-              <Stack.Screen name="account/delete" options={{ title: 'Delete account', ...modal }} />
-              <Stack.Screen name="tracker/new" options={{ title: 'New tracker', ...modal }} />
-              <Stack.Screen name="tracker/[id]/index" options={{ title: '' }} />
-              <Stack.Screen name="tracker/[id]/edit" options={{ title: 'Edit tracker', ...modal }} />
-              <Stack.Screen name="tracker/[id]/trade" options={{ title: 'Log trade', ...modal }} />
-              <Stack.Screen name="tracker/[id]/expense" options={{ title: 'Add expense', ...modal }} />
-              <Stack.Screen name="tracker/[id]/journal" options={{ title: 'Daily journal', ...modal }} />
-              <Stack.Screen name="tracker/[id]/report" options={{ title: 'Report' }} />
-              <Stack.Screen name="tracker/[id]/breaks" options={{ title: 'Rule breaks' }} />
-            </Stack.Protected>
-          </Stack>
-          </AppGates>
-        </ThemeProvider>
+                  {/* Your data: only when signed in. Guests reach these via goProtected() (sign-in sheet first);
+                      if one is opened any other way (deep link, notification, signing out), go home — never to a login wall. */}
+                  <Stack.Protected guard={!!token} redirectTo={showOnboarding ? '/onboarding' : '/'}>
+                    <Stack.Screen name="verify-email" options={{ title: 'Verify email', ...modal }} />
+                    <Stack.Screen name="achievements" options={{ title: 'Level & badges' }} />
+                    <Stack.Screen name="forest" options={{ title: 'Your forest' }} />
+                    <Stack.Screen name="account/password" options={{ title: 'Change password', ...modal }} />
+                    <Stack.Screen name="account/delete" options={{ title: 'Delete account', ...modal }} />
+                    <Stack.Screen name="tracker/new" options={{ title: 'New tracker', ...modal }} />
+                    <Stack.Screen name="tracker/[id]/index" options={{ title: '' }} />
+                    <Stack.Screen name="tracker/[id]/edit" options={{ title: 'Edit tracker', ...modal }} />
+                    <Stack.Screen name="tracker/[id]/trade" options={{ title: 'Log trade', ...modal }} />
+                    <Stack.Screen name="tracker/[id]/quick" options={{ title: 'Quick day log', ...modal }} />
+                    <Stack.Screen name="tracker/[id]/expense" options={{ title: 'Add expense', ...modal }} />
+                    <Stack.Screen name="tracker/[id]/journal" options={{ title: 'Daily journal', ...modal }} />
+                    <Stack.Screen name="tracker/[id]/report" options={{ title: 'Report' }} />
+                    <Stack.Screen name="tracker/[id]/breaks" options={{ title: 'Rule breaks' }} />
+                  </Stack.Protected>
+                </Stack>
+              </AppGates>
+            </ThemeProvider>
+          )}
+        </ThemeGate>
       </QueryClientProvider>
     </SafeAreaProvider>
   );

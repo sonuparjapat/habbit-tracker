@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
+import { HttpError } from '../middleware/errors.js';
+import { forestFor } from '../services/forest.js';
 import { gameState, markAchievementsSeen } from '../services/gamification.js';
 import { getSettings } from '../services/settings.js';
 import { serializeTracker, todayFor } from '../services/trackers.js';
@@ -44,6 +46,13 @@ dashboardRouter.get('/', async (req, res) => {
     cards,
     game,
   });
+});
+
+/** "Your forest": a tree for every day you kept your promises. */
+dashboardRouter.get('/forest', async (req, res) => {
+  const settings = await getSettings();
+  if (!settings.feature_gamification) throw new HttpError(404, 'Games are switched off right now.', 'DISABLED');
+  res.json(await forestFor(req.user));
 });
 
 /** The app calls this after showing the "achievement unlocked" celebration. */

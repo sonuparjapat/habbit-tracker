@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ComponentProps, ReactNode } from 'react';
+import { createContext, useContext, type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -20,13 +20,26 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
-import { colors, gradients, levelColor, radius, space } from '@/theme';
+import { colors, gradients, levelColor, radius, space, themed } from '@/theme';
 import type { Insight } from '@/lib/types';
 
 export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-export function Icon({ name, size = 20, color = colors.text }: { name: string; size?: number; color?: string }) {
-  return <MaterialCommunityIcons name={name as IconName} size={size} color={color} />;
+/** Text/icon colour forced by a coloured background (white on gradients, in both themes). */
+const InkContext = createContext<string | null>(null);
+
+/** A coloured gradient panel: text and icons inside it are white in light and dark mode. */
+export function Gradient({ children, ...props }: ComponentProps<typeof LinearGradient>) {
+  return (
+    <LinearGradient {...props}>
+      <InkContext.Provider value="#FFFFFF">{children}</InkContext.Provider>
+    </LinearGradient>
+  );
+}
+
+export function Icon({ name, size = 20, color }: { name: string; size?: number; color?: string }) {
+  const ink = useContext(InkContext);
+  return <MaterialCommunityIcons name={name as IconName} size={size} color={color ?? ink ?? colors.text} />;
 }
 
 export const haptic = {
@@ -97,16 +110,18 @@ export function Txt({
   numberOfLines?: number;
   center?: boolean;
 }) {
+  const ink = useContext(InkContext);
+  const tint = color ?? (ink && variant !== 'label' && variant !== 'caption' ? ink : ink ? 'rgba(255,255,255,0.82)' : null);
   return (
     <Text
       numberOfLines={numberOfLines}
-      style={[textStyles[variant], color ? { color } : null, center ? { textAlign: 'center' } : null, style]}>
+      style={[textStyles[variant], tint ? { color: tint } : null, center ? { textAlign: 'center' } : null, style]}>
       {children}
     </Text>
   );
 }
 
-const textStyles = StyleSheet.create({
+const textStyles = themed(() => StyleSheet.create({
   hero: { color: colors.text, fontSize: 40, fontWeight: '800', letterSpacing: -1, fontVariant: ['tabular-nums'] },
   title: { color: colors.text, fontSize: 28, fontWeight: '800', letterSpacing: -0.6 },
   h2: { color: colors.text, fontSize: 20, fontWeight: '700', letterSpacing: -0.3 },
@@ -115,7 +130,7 @@ const textStyles = StyleSheet.create({
   label: { color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
   caption: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
   mono: { color: colors.text, fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'] },
-});
+}));
 
 /* --------------------------------- Surfaces ------------------------------- */
 
@@ -136,7 +151,7 @@ export function Card({
     <LinearGradient
       colors={gradients.card}
       style={[styles.card, padded && { padding: space.lg }, accent ? { borderColor: accent } : null, style]}>
-      {children}
+      <InkContext.Provider value={null}>{children}</InkContext.Provider>
     </LinearGradient>
   );
   if (!onPress) return body;
@@ -190,7 +205,7 @@ export function Button({
 }) {
   const isGradient = variant === 'primary' || variant === 'danger' || variant === 'success';
   const grad = variant === 'danger' ? gradients.red : variant === 'success' ? gradients.green : gradients.primary;
-  const fg = variant === 'ghost' ? colors.textMuted : colors.text;
+  const fg = isGradient ? '#FFFFFF' : variant === 'ghost' ? colors.textMuted : colors.text;
   const inner = (
     <Row gap={8} style={{ justifyContent: 'center' }}>
       {loading ? <ActivityIndicator color={fg} size="small" /> : icon ? <Icon name={icon} size={18} color={fg} /> : null}
@@ -525,7 +540,7 @@ export function ErrorView({ error, onRetry }: { error: unknown; onRetry?: () => 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   scrollContent: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: 140 },
   card: { borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
@@ -552,4 +567,4 @@ const styles = StyleSheet.create({
   segment: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: radius.sm },
   stepBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceHigh, alignItems: 'center', justifyContent: 'center' },
   alert: { flexDirection: 'row', gap: 12, padding: 14, borderRadius: radius.md, borderWidth: 1, alignItems: 'flex-start' },
-});
+}));

@@ -56,9 +56,19 @@ export function Badge({ tone = 'neutral', children }) {
   return <span className={`badge ${BADGE_TONES[tone] ?? tone}`}>{children}</span>;
 }
 
-export function StatCard({ label, value, sub, onClick }) {
+const ACCENTS = {
+  violet: ['linear-gradient(90deg, #7c5cff, #4f8bff)', 'rgba(124, 92, 255, 0.16)'],
+  green: ['linear-gradient(90deg, #16a34a, #22c55e)', 'rgba(34, 197, 94, 0.14)'],
+  red: ['linear-gradient(90deg, #be123c, #f43f5e)', 'rgba(244, 63, 94, 0.14)'],
+  amber: ['linear-gradient(90deg, #d97706, #f59e0b)', 'rgba(245, 158, 11, 0.14)'],
+  blue: ['linear-gradient(90deg, #2f6feb, #4f8bff)', 'rgba(79, 139, 255, 0.14)'],
+};
+
+export function StatCard({ label, value, sub, onClick, icon, accent = 'violet' }) {
+  const [bar, soft] = ACCENTS[accent] ?? ACCENTS.violet;
   return (
-    <div className="card" onClick={onClick} style={onClick ? { cursor: 'pointer' } : undefined}>
+    <div className={`card stat${onClick ? ' clickable' : ''}`} onClick={onClick} style={{ '--accent': bar, '--accent-soft': soft }}>
+      {icon ? <span className="stat-icon">{icon}</span> : null}
       <div className="kpi-label">{label}</div>
       <div className="kpi-value">{value ?? '—'}</div>
       {sub ? <div className="kpi-sub">{sub}</div> : null}

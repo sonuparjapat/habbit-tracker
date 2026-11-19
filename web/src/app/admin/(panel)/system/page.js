@@ -37,11 +37,13 @@ export default function SystemPage() {
         <div className="stack" style={{ gap: 14 }}>
           <div className="row wrap" style={{ gap: 8 }}>
             <span className="muted">Provider</span>
-            <Badge tone={email.provider === 'console' ? 'warning' : 'success'}>{email.provider}</Badge>
+            <Badge tone={email.problem ? 'danger' : email.provider === 'console' ? 'warning' : 'success'}>{email.problem ? `${email.provider} · not working` : email.provider}</Badge>
             <span className="muted">from</span>
             <span className="mono">{email.from}</span>
           </div>
-          {email.provider === 'console' ? (
+          {email.problem ? (
+            <div className="error">{email.problem} Add it in your hosting dashboard (Render → Environment) and redeploy.</div>
+          ) : email.provider === 'console' ? (
             <div className="error" style={{ background: 'var(--amber-soft)', color: 'var(--amber)' }}>
               Emails are only printed in the server log. Set BREVO_API_KEY on the server to send real emails.
             </div>

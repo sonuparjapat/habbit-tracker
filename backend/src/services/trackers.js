@@ -2,7 +2,7 @@ import { query } from '../db/pool.js';
 import { HttpError, isUuid } from '../middleware/errors.js';
 import { addDays, dateIn, todayIn, weekdayOf } from '../utils/date.js';
 import { habitStreaks } from './habitStats.js';
-import { computeDayStatus, computeSpendStatus, money } from './rules.js';
+import { computeDayStatus, computeSpendStatus, loadTradingContext, money } from './rules.js';
 import { parseConfig } from './trackerConfig.js';
 import { computeStreaks, tradingAlerts } from './tradingStats.js';
 
@@ -43,7 +43,7 @@ export const trackingStart = (t, timeZone, dates) => dates.reduce((min, d) => (d
 
 export async function loadTrades(trackerId, from, to) {
   const { rows } = await query(
-    `SELECT id, trade_date, (pnl - fees)::float8 AS net, is_rule_break, emotion_before, followed_plan
+    `SELECT id, trade_date, (pnl - fees)::float8 AS net, is_rule_break, emotion_before, followed_plan, trade_count, traded_at
        FROM trades WHERE tracker_id = $1 AND trade_date BETWEEN $2 AND $3
       ORDER BY trade_date, traded_at, created_at`,
     [trackerId, from, to],
@@ -68,6 +68,21 @@ export async function loadExpenses(trackerId, from, to) {
   return rows;
 }
 
+/**
+ * Full status of one trading day: today's trades plus context from earlier days
+ * (weekly/monthly totals, cool-off) and the tilt timer. `db` may be a transaction client.
+ */
+export async function dayStatusFor(db, trackerId, cfg, date, user) {
+  const ctx = await loadTradingContext(db, trackerId, date, cfg);
+  const { rows } = await db.query(
+    `SELECT (pnl - fees)::float8 AS net, trade_count AS count, traded_at FROM trades
+      WHERE tracker_id = $1 AND trade_date = $2 ORDER BY traded_at, created_at`,
+    [trackerId, date],
+  );
+  const trades = rows.map((r) => ({ net: r.net, count: r.count, at: new Date(r.traded_at).getTime() }));
+  return computeDayStatus(cfg, date, weekdayOf(date), trades, user.currency, ctx, Date.now(), user.timezone);
+}
+
 /* --------------------------------- Today --------------------------------- */
 
 export async function tradingToday(t, user) {
@@ -80,7 +95,7 @@ export async function tradingToday(t, user) {
     loadBreaks(t.id, since, today),
     query('SELECT completed FROM daily_entries WHERE tracker_id = $1 AND entry_date = $2', [t.id, today]),
   ]);
-  const status = computeDayStatus(cfg, today, weekdayOf(today), allTrades.filter((x) => x.trade_date === today), user.currency);
+  const status = await dayStatusFor({ query }, t.id, cfg, today, user);
   const streaks = computeStreaks(allTrades, allBreaks);
   const weekAgo = addDays(today, -6);
   const breaksLast7Days = allBreaks.filter((b) => b.break_date >= weekAgo).length;

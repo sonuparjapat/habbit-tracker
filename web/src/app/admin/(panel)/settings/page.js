@@ -17,6 +17,14 @@ function SettingInput({ def, value, onChange }) {
       return <Toggle checked={value} onChange={onChange} label={value ? 'On' : 'Off'} />;
     case 'number':
       return <input className="input" type="number" min={def.min ?? 0} max={def.max} value={value ?? ''} onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))} />;
+    case 'select':
+      return (
+        <select className="input" value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
+          {def.options.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      );
     case 'text':
       return <textarea rows={3} style={{ fontFamily: 'inherit', fontSize: 14 }} value={value ?? ''} onChange={(e) => onChange(e.target.value)} />;
     case 'list':

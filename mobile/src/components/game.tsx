@@ -1,9 +1,8 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import type { Achievement, Game } from '@/lib/types';
-import { colors, gradients, radius } from '@/theme';
-import { Button, haptic, Icon, ProgressBar, Row, Txt } from './ui';
+import { colors, gradients, radius, themed } from '@/theme';
+import { Button, Gradient, haptic, Icon, ProgressBar, Row, Txt } from './ui';
 
 /* --------------------------------- Level bar -------------------------------- */
 
@@ -12,9 +11,9 @@ export function LevelBar({ game, onPress }: { game: Game; onPress?: () => void }
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Level ${game.level}, ${game.levelName}. ${toNext} XP to next level.`}>
       <View style={styles.levelCard}>
-        <LinearGradient colors={gradients.primary} style={styles.levelBadge}>
+        <Gradient colors={gradients.primary} style={styles.levelBadge}>
           <Txt variant="h2" style={{ fontSize: 18 }}>{game.level}</Txt>
-        </LinearGradient>
+        </Gradient>
         <View style={{ flex: 1, gap: 6 }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Txt variant="h3">{game.levelName}</Txt>
@@ -37,9 +36,9 @@ export function AchievementGrid({ achievements }: { achievements: Achievement[] 
       {achievements.map((a) => (
         <View key={a.key} style={[styles.badge, !a.unlocked && { opacity: 0.4 }]} accessibilityLabel={`${a.title}: ${a.description}${a.unlocked ? ', unlocked' : ', locked'}`}>
           {a.unlocked ? (
-            <LinearGradient colors={['#F59E0B', '#F43F5E']} style={styles.badgeIcon}>
+            <Gradient colors={['#F59E0B', '#F43F5E']} style={styles.badgeIcon}>
               <Icon name={a.icon} size={26} />
-            </LinearGradient>
+            </Gradient>
           ) : (
             <View style={[styles.badgeIcon, { backgroundColor: colors.surfaceHigh }]}>
               <Icon name="lock" size={22} color={colors.textDim} />
@@ -122,9 +121,9 @@ export function CelebrationModal({ celebration, onClose }: { celebration: Celebr
       <View style={styles.backdrop}>
         <Confetti />
         <Animated.View style={[styles.celebrateCard, { transform: [{ scale }] }]}>
-          <LinearGradient colors={isLevel ? gradients.primary : ['#F59E0B', '#F43F5E']} style={styles.celebrateIcon}>
+          <Gradient colors={isLevel ? gradients.primary : ['#F59E0B', '#F43F5E']} style={styles.celebrateIcon}>
             {isLevel ? <Txt variant="hero" style={{ fontSize: 44 }}>{celebration.level}</Txt> : <Icon name={badge!.icon} size={52} />}
-          </LinearGradient>
+          </Gradient>
           <Txt variant="label" center color={colors.amber}>{isLevel ? 'Level up!' : celebration.badges.length > 1 ? `${celebration.badges.length} badges unlocked!` : 'Badge unlocked!'}</Txt>
           <Txt variant="title" center>{isLevel ? celebration.levelName : badge!.title}</Txt>
           <Txt variant="caption" center style={{ fontSize: 15, lineHeight: 22 }}>
@@ -173,7 +172,7 @@ export function XpPop({ trigger, amount }: { trigger: number; amount: number }) 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   levelCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: 14 },
   levelBadge: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
@@ -182,4 +181,4 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(5,6,10,0.82)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   celebrateCard: { width: '100%', maxWidth: 360, backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.borderStrong, padding: 28, alignItems: 'center', gap: 10 },
   celebrateIcon: { width: 104, height: 104, borderRadius: 52, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-});
+}));

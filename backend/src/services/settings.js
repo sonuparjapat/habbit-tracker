@@ -43,6 +43,39 @@ export const SETTINGS = {
   feature_gamification: { group: 'Features', label: 'XP, levels & badges', type: 'boolean', default: true, public: true },
   ads_enabled: { group: 'Features', label: 'Show ads', type: 'boolean', default: false, public: true, description: 'Only works once AdMob is set up in the app build.' },
 
+  // Look & feel
+  default_theme: {
+    group: 'Look & feel',
+    label: 'Default app theme',
+    type: 'select',
+    options: [
+      { value: 'dark', label: 'Dark' },
+      { value: 'light', label: 'Light' },
+      { value: 'system', label: 'Follow the phone setting' },
+    ],
+    default: 'dark',
+    public: true,
+    description: 'Used until a member picks their own theme in Profile → Appearance.',
+  },
+
+  // Onboarding tour (shown once to every new member; replayable from Profile)
+  tour_enabled: { group: 'Onboarding tour', label: 'Show app tour to new members', type: 'boolean', default: true, public: true },
+  tour_steps: {
+    group: 'Onboarding tour',
+    label: 'Tour steps',
+    type: 'list',
+    public: true,
+    description: 'One step per line, written as:  emoji | title | text',
+    default: [
+      '👋 | Welcome to Anchor | This is where you build habits that stick and break the ones that don’t. Here’s how it works in 30 seconds.',
+      '🎯 | Pick what you want to change | Tap + to add a tracker — a workout, reading, quitting smoking, a daily budget, trading limits, or your own.',
+      '✅ | Check in every day | Tap a habit when it’s done. Each day you show up grows your streak 🔥 — miss one and it resets.',
+      '🛡️ | Set limits that hold you back | Daily limits, budgets and trading rules. Try to cross them and Anchor stops you first.',
+      '🏆 | Earn XP, levels & badges | Every kept promise earns XP. Breaking a rule costs you. Watch yourself level up.',
+      '📊 | See the truth | Weekly and monthly reports show your best days, weak spots and what’s really working.',
+    ],
+  },
+
   // Content
   daily_quotes: { group: 'Content', label: 'Daily quotes', type: 'list', default: DEFAULT_QUOTES, public: true, description: 'One is shown on the Today screen each day. One quote per line.' },
 
@@ -68,6 +101,8 @@ function schemaFor(def) {
       return z.union([z.literal(''), z.email('Enter a valid email')]);
     case 'url':
       return z.union([z.literal(''), z.url('Enter a full URL starting with https://')]);
+    case 'select':
+      return z.enum(def.options.map((o) => o.value), { error: 'Pick one of the options' });
     case 'list':
       return z.array(z.string().trim().min(1).max(500)).max(200);
     case 'text':

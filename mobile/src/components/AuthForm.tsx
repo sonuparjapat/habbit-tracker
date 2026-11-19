@@ -1,11 +1,10 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { useAuth } from '@/lib/auth';
 import { usePrefs } from '@/lib/prefs';
 import { colors, gradients } from '@/theme';
-import { Button, Checkbox, Icon, IconButton, Input, Row, Screen, Txt } from './ui';
+import { Button, Checkbox, Gradient, Icon, IconButton, Input, Row, Screen, Txt } from './ui';
 
 export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const { next } = useLocalSearchParams<{ next?: string }>();
@@ -57,9 +56,9 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         </Row>
 
         <View style={{ alignItems: 'center', gap: 14 }}>
-          <LinearGradient colors={gradients.primary} style={{ width: 68, height: 68, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}>
+          <Gradient colors={gradients.primary} style={{ width: 68, height: 68, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="anchor" size={36} />
-          </LinearGradient>
+          </Gradient>
           <Txt variant="title" center>{mode === 'login' ? 'Welcome back' : 'Create your account'}</Txt>
           <Txt variant="caption" center style={{ maxWidth: 300 }}>
             {mode === 'login' ? 'Your rules are waiting. Stay anchored.' : 'Free forever. Your trackers and streaks are saved securely and synced.'}

@@ -12,7 +12,7 @@ function aggregateDays(trades, breaks) {
   for (const t of trades) {
     const d = get(t.trade_date);
     d.pnl += t.net;
-    d.trades += 1;
+    d.trades += t.trade_count ?? 1;
     if (!t.is_rule_break) d.disciplinedPnl += t.net;
   }
   for (const b of breaks) get(b.break_date).breaks += 1;
@@ -47,6 +47,8 @@ export const dayScore = (breaks) => Math.max(0, 100 - 34 * breaks);
 export function computeTradingStats(cfg, currency, range, trades, breaks) {
   const days = aggregateDays(trades, breaks);
   const nets = trades.map((t) => t.net);
+  // A quick day log can stand for several trades
+  const tradeCount = trades.reduce((sum, t) => sum + (t.trade_count ?? 1), 0);
   const wins = nets.filter((n) => n > 0);
   const losses = nets.filter((n) => n < 0);
   const grossProfit = wins.reduce((s, n) => s + n, 0);
@@ -135,19 +137,19 @@ export function computeTradingStats(cfg, currency, range, trades, breaks) {
     netPnl: round2(netPnl),
     grossProfit: round2(grossProfit),
     grossLoss: round2(grossLoss),
-    trades: trades.length,
+    trades: tradeCount,
     wins: wins.length,
     losses: losses.length,
     winRate: trades.length ? round2((wins.length / trades.length) * 100) : 0,
     avgWin: wins.length ? round2(grossProfit / wins.length) : 0,
     avgLoss: losses.length ? round2(grossLoss / losses.length) : 0,
     profitFactor: grossLoss > 0 ? round2(grossProfit / grossLoss) : grossProfit > 0 ? null : 0,
-    expectancy: trades.length ? round2(netPnl / trades.length) : 0,
+    expectancy: tradeCount ? round2(netPnl / tradeCount) : 0,
     daysTraded: tradingDays.length,
     greenDays: tradingDays.filter((d) => d.pnl > 0).length,
     redDays: tradingDays.filter((d) => d.pnl < 0).length,
     targetHitDays: days.filter((d) => cfg.dailyProfitTarget > 0 && d.pnl >= cfg.dailyProfitTarget).length,
-    avgTradesPerDay: tradingDays.length ? round2(trades.length / tradingDays.length) : 0,
+    avgTradesPerDay: tradingDays.length ? round2(tradeCount / tradingDays.length) : 0,
     bestDay: best ? { date: best.date, pnl: round2(best.pnl) } : null,
     worstDay: worst ? { date: worst.date, pnl: round2(worst.pnl) } : null,
     maxDrawdown: round2(maxDrawdown),
@@ -235,6 +237,16 @@ export function tradingAlerts(cfg, currency, status, streaks, breaksLast7Days) {
   const m = (n) => money(n, currency);
   if (!status.isTradingDay && status.trades === 0)
     out.push({ level: 'info', title: 'Day off', message: 'Not one of your trading days. Rest is part of the plan — the market will be there tomorrow.' });
+  if (status.coolOff)
+    out.push({ level: 'danger', title: `Cool-off until ${status.coolOffUntil}`, message: 'After a big loss, the best trade is no trade. Rest, review your journal, come back calm.' });
+  if (status.tiltUntil)
+    out.push({ level: 'danger', title: 'Tilt alarm — take a break', message: `${cfg.tiltLosses} losses in a row. Walk away from the screen for ${cfg.tiltPauseMinutes} minutes.` });
+  if (status.monthlyLimitHit) out.push({ level: 'danger', title: 'Monthly loss limit reached', message: 'Trading is closed for the rest of the month. Protect what is left.' });
+  else if (status.weeklyLimitHit) out.push({ level: 'danger', title: 'Weekly loss limit reached', message: 'Trading is closed until Monday.' });
+  else if (cfg.weeklyMaxLoss > 0 && status.weekPnl <= -0.7 * cfg.weeklyMaxLoss)
+    out.push({ level: 'warning', title: 'Close to your weekly loss limit', message: `This week: ${m(status.weekPnl)} of ${m(-cfg.weeklyMaxLoss)}. Trade smaller or sit out.` });
+  if (status.coolOffNext)
+    out.push({ level: 'warning', title: 'Big loss today — cool-off starts tomorrow', message: `Trading is locked until ${status.coolOffNext}. That is the rule you set to protect yourself.` });
   if (status.lossLimitHit) out.push({ level: 'danger', title: 'Loss limit hit — stop now', message: 'Close the terminal. Losing days are part of the game; revenge days end accounts.' });
   else if (status.targetHit && cfg.stopAfterTarget) out.push({ level: 'success', title: 'Target hit — day closed', message: `${m(status.netPnl)} today. Your job is done. Walk away and protect it.` });
   else if (status.tradeLimitHit) out.push({ level: 'info', title: 'Trade limit reached', message: 'The market will be there tomorrow. Nothing more to do today.' });

@@ -51,7 +51,7 @@ const tradeUpdate = z
 async function retradeDays(db, user, tracker, dates, newReasons) {
   const cfg = parseConfig('trading', tracker.config);
   for (const date of new Set(dates))
-    await reevaluateTradingDay(db, { trackerId: tracker.id, userId: user.id, date, weekday: weekdayOf(date), cfg, currency: user.currency, newReasons });
+    await reevaluateTradingDay(db, { trackerId: tracker.id, userId: user.id, date, cfg, currency: user.currency, timeZone: user.timezone, newReasons });
 }
 
 tradesRouter.patch('/:id', async (req, res) => {

@@ -63,6 +63,13 @@ export interface TradingConfig {
   dailyProfitTarget: number;
   dailyMaxLoss: number;
   stopAfterTarget: boolean;
+  weeklyMaxLoss: number;
+  monthlyMaxLoss: number;
+  maxLossPerTrade: number;
+  coolOffLoss: number;
+  coolOffDays: number;
+  tiltLosses: number;
+  tiltPauseMinutes: number;
   tradingDays: number[];
   checklist: string[];
   customRules: string[];
@@ -106,6 +113,17 @@ export interface DayStatus {
   date: string;
   trades: number;
   netPnl: number;
+  weekPnl: number;
+  monthPnl: number;
+  weeklyMaxLoss: number;
+  monthlyMaxLoss: number;
+  weeklyLimitHit: boolean;
+  monthlyLimitHit: boolean;
+  coolOff: boolean;
+  coolOffUntil: string | null;
+  /** today's loss starts a cool-off until this date */
+  coolOffNext: string | null;
+  tiltUntil: string | null;
   maxTrades: number;
   remainingTrades: number;
   profitTarget: number;
@@ -334,3 +352,29 @@ export const EMOTIONS = [
   { key: 'satisfied', label: 'Satisfied', emoji: '😊', risky: false },
 ] as const;
 export const emotionOf = (key: string | null | undefined) => EMOTIONS.find((e) => e.key === key);
+
+/** "Your forest": -1 withered · 0 empty · 1 sprout · 2 tree · 3 grand tree */
+export type TreeStage = -1 | 0 | 1 | 2 | 3;
+export interface ForestDay {
+  date: string;
+  good: number;
+  bad: number;
+  tree: TreeStage;
+}
+export interface ForestStage {
+  min: number;
+  name: string;
+  emoji: string;
+}
+export interface Forest {
+  today: string;
+  alive: number;
+  withered: number;
+  grand: number;
+  streak: number;
+  health: number | null;
+  stage: ForestStage & { index: number };
+  next: (ForestStage & { treesToGo: number }) | null;
+  todayTree: TreeStage;
+  grid: ForestDay[];
+}

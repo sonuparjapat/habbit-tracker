@@ -271,6 +271,56 @@ function TradingFields({ cfg, setCfg, currency }: { cfg: TradingConfig; setCfg: 
         </Row>
       </Card>
 
+      <SectionTitle>Protect yourself</SectionTitle>
+      <Txt variant="caption" style={{ marginBottom: 12 }}>Guard-rails for bad days. 0 = off. Breaking them is recorded and costs XP.</Txt>
+      <Card style={{ gap: 20 }}>
+        <Row gap={12} style={{ alignItems: 'flex-start' }}>
+          <View style={{ flex: 1 }}>
+            <MoneyField label="Weekly loss limit" value={cfg.weeklyMaxLoss} onChange={(weeklyMaxLoss) => setCfg({ weeklyMaxLoss })} currency={currency} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <MoneyField label="Monthly loss limit" value={cfg.monthlyMaxLoss} onChange={(monthlyMaxLoss) => setCfg({ monthlyMaxLoss })} currency={currency} />
+          </View>
+        </Row>
+        <MoneyField
+          label="Max loss on a single trade"
+          value={cfg.maxLossPerTrade}
+          onChange={(maxLossPerTrade) => setCfg({ maxLossPerTrade })}
+          currency={currency}
+          hint={cfg.maxLossPerTrade ? `A trade losing more than ${money(cfg.maxLossPerTrade, currency)} means the stop-loss wasn't respected.` : 'Off'}
+        />
+        <View style={{ gap: 12 }}>
+          <MoneyField
+            label="Cool-off after a losing day of"
+            value={cfg.coolOffLoss}
+            onChange={(coolOffLoss) => setCfg({ coolOffLoss })}
+            currency={currency}
+            hint={cfg.coolOffLoss ? `Lose ${money(cfg.coolOffLoss, currency)} or more in a day and the next ${cfg.coolOffDays} day${cfg.coolOffDays > 1 ? 's are' : ' is'} locked.` : 'Off — big losing days don’t lock the next day'}
+          />
+          {cfg.coolOffLoss ? (
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Txt variant="h3">Days locked after</Txt>
+              <Stepper value={cfg.coolOffDays} min={1} onChange={(coolOffDays) => setCfg({ coolOffDays: Math.min(14, coolOffDays) })} />
+            </Row>
+          ) : null}
+        </View>
+        <View style={{ gap: 12 }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Txt variant="h3">Tilt alarm after losses in a row</Txt>
+              <Txt variant="caption">{cfg.tiltLosses ? `After ${cfg.tiltLosses} losing trades in a row, you must pause.` : 'Off'}</Txt>
+            </View>
+            <Stepper value={cfg.tiltLosses} min={0} onChange={(tiltLosses) => setCfg({ tiltLosses: Math.min(10, tiltLosses) })} />
+          </Row>
+          {cfg.tiltLosses ? (
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Txt variant="h3">Pause (minutes)</Txt>
+              <Stepper value={cfg.tiltPauseMinutes} step={15} min={15} onChange={(tiltPauseMinutes) => setCfg({ tiltPauseMinutes: Math.min(240, tiltPauseMinutes) })} />
+            </Row>
+          ) : null}
+        </View>
+      </Card>
+
       <SectionTitle>Pre-trade checklist</SectionTitle>
       <Txt variant="caption" style={{ marginBottom: 12 }}>Ticked before every trade. Skipping an item is recorded.</Txt>
       <ListEditor items={cfg.checklist} onChange={(checklist) => setCfg({ checklist })} placeholder="Add a checklist item" />

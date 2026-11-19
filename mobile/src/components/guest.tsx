@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, ScrollView, View } from 'react-native';
 import { CATEGORIES } from '@/lib/catalog';
 import { useAppConfig } from '@/lib/config';
@@ -7,7 +6,7 @@ import { useTemplates } from '@/lib/queries';
 import { goProtected, goSignIn } from '@/lib/requireAuth';
 import type { Category, CategoryKey, Template } from '@/lib/types';
 import { colors, gradients, radius } from '@/theme';
-import { AlertCard, Button, Card, Icon, ProgressBar, Ring, Row, Screen, SectionTitle, TrackerIcon, Txt } from './ui';
+import { AlertCard, Button, Card, Gradient, Icon, ProgressBar, Ring, Row, Screen, SectionTitle, TrackerIcon, Txt } from './ui';
 
 /** What each life area looks like in practice — shown on the guest home. */
 const AREA_EXAMPLES: Record<CategoryKey, string> = {
@@ -23,9 +22,9 @@ const AREA_EXAMPLES: Record<CategoryKey, string> = {
 function Logo() {
   return (
     <Row gap={10}>
-      <LinearGradient colors={gradients.primary} style={{ width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+      <Gradient colors={gradients.primary} style={{ width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name="anchor" size={20} />
-      </LinearGradient>
+      </Gradient>
       <Txt variant="h2">Anchor</Txt>
     </Row>
   );
@@ -244,7 +243,7 @@ export function GuestHome() {
       </Row>
 
       {/* Hero */}
-      <LinearGradient colors={['#271D5E', '#121628']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: 26, borderWidth: 1, borderColor: '#352B78' }}>
+      <Gradient colors={['#271D5E', '#121628']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: 26, borderWidth: 1, borderColor: '#352B78' }}>
         <Txt variant="title" style={{ fontSize: 30, lineHeight: 37 }}>Build habits that stick. Break the ones that don’t.</Txt>
         <Txt color="#B8BFD0" style={{ marginTop: 12 }}>
           Workouts, reading, sleep, quitting smoking, spending less — pick what matters to you, set your own goal, and Anchor keeps you on track every day.
@@ -261,7 +260,7 @@ export function GuestHome() {
         ) : null}
         <Button title="Start for free" icon="arrow-right" style={{ marginTop: 22 }} onPress={() => goSignIn('register')} />
         <Txt variant="caption" center style={{ marginTop: 10, fontSize: 12 }}>Free · takes 10 seconds · your data stays private</Txt>
-      </LinearGradient>
+      </Gradient>
 
       <SectionTitle>What do you want to change?</SectionTitle>
       <AreaGrid />
@@ -308,14 +307,14 @@ export function GuestHome() {
         ))}
       </Card>
 
-      <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: 28, marginTop: 28, gap: 12, alignItems: 'center' }}>
+      <Gradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: 28, marginTop: 28, gap: 12, alignItems: 'center' }}>
         <Icon name="anchor" size={34} />
         <Txt variant="h2" center>Small steps. Every day.</Txt>
         <Txt center style={{ opacity: 0.9 }}>That’s how real change happens. Start with one habit today.</Txt>
         <Pressable onPress={() => goSignIn('register')} style={{ backgroundColor: colors.text, paddingHorizontal: 24, paddingVertical: 14, borderRadius: radius.md, marginTop: 6 }}>
           <Txt variant="h3" color={colors.bg}>Create free account</Txt>
         </Pressable>
-      </LinearGradient>
+      </Gradient>
     </Screen>
   );
 }

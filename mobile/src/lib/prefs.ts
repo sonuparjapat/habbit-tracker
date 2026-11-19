@@ -8,6 +8,8 @@ import type { CategoryKey } from './types';
  */
 const KEY = 'prefs_v1';
 
+export type ThemePref = 'default' | 'system' | 'dark' | 'light';
+
 interface PrefsData {
   onboarded: boolean;
   interests: CategoryKey[];
@@ -19,6 +21,12 @@ interface PrefsData {
   celebratedLevel: number;
   /** "Update available" banner closed for this version */
   dismissedUpdate: string | null;
+  /** The guided tour was finished or skipped */
+  tourDone: boolean;
+  /** Appearance: 'default' follows the admin's default theme */
+  theme: ThemePref;
+  /** Last default theme received from the admin settings (so the first frame already uses it) */
+  adminTheme: 'dark' | 'light' | 'system';
 }
 
 interface PrefsState extends PrefsData {
@@ -34,6 +42,9 @@ const defaults: PrefsData = {
   dismissedAnnouncements: [],
   celebratedLevel: 0,
   dismissedUpdate: null,
+  tourDone: false,
+  theme: 'default',
+  adminTheme: 'dark',
 };
 
 const pickData = (s: PrefsData): PrefsData => ({
@@ -44,6 +55,9 @@ const pickData = (s: PrefsData): PrefsData => ({
   dismissedAnnouncements: s.dismissedAnnouncements.slice(-50),
   celebratedLevel: s.celebratedLevel,
   dismissedUpdate: s.dismissedUpdate,
+  tourDone: s.tourDone,
+  theme: s.theme,
+  adminTheme: s.adminTheme,
 });
 
 export const usePrefs = create<PrefsState>((set, get) => ({

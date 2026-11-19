@@ -1,23 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
-import {
-  AlertCard,
-  Button,
-  Card,
-  Chip,
-  haptic,
-  Icon,
-  Input,
-  Loading,
-  Row,
-  Screen,
-  SectionTitle,
-  Segmented,
-  ToggleRow,
-  Txt,
-} from '@/components/ui';
+import { AlertCard, Button, Card, Chip, Gradient, haptic, Icon, Input, Loading, Row, Screen, SectionTitle, Segmented, ToggleRow, Txt } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAppConfig } from '@/lib/config';
@@ -100,14 +84,14 @@ function LockedView({ tracker, status, onBreak }: { tracker: TradingTracker; sta
 
   return (
     <Screen edges={['bottom']} contentStyle={{ gap: 16 }}>
-      <LinearGradient colors={tone} style={{ borderRadius: 28, padding: 28, alignItems: 'center', gap: 10 }}>
+      <Gradient colors={tone} style={{ borderRadius: 28, padding: 28, alignItems: 'center', gap: 10 }}>
         <Icon name="shield-lock" size={64} />
         <Txt variant="title" center>Your day is closed</Txt>
         <Txt variant="hero" center>{money(status.netPnl, currency, { sign: true })}</Txt>
         {status.lockReasons.map((r) => (
           <Txt key={r.rule} center style={{ opacity: 0.9 }}>{r.message}</Txt>
         ))}
-      </LinearGradient>
+      </Gradient>
 
       {cleanStreak > 0 ? (
         <AlertCard
@@ -542,12 +526,12 @@ function ResultView({ tracker, result }: { tracker: TradingTracker; result: { br
 
   return (
     <Screen edges={['bottom']} contentStyle={{ gap: 16 }}>
-      <LinearGradient colors={tone} style={{ borderRadius: 28, padding: 28, alignItems: 'center', gap: 8 }}>
+      <Gradient colors={tone} style={{ borderRadius: 28, padding: 28, alignItems: 'center', gap: 8 }}>
         <Icon name={broke ? 'alert-octagon' : s.locked ? 'trophy' : 'check-circle'} size={60} />
         <Txt variant="title" center>{title}</Txt>
         <Txt variant="hero" center>{money(s.netPnl, currency, { sign: true })}</Txt>
         <Txt center style={{ opacity: 0.9 }}>{subtitle}</Txt>
-      </LinearGradient>
+      </Gradient>
 
       {result.breaks.map((b) => (
         <AlertCard key={b.rule} alert={{ level: 'danger', title: b.label ?? b.rule, message: b.description }} />

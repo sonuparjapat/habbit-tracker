@@ -22,6 +22,9 @@ export interface AppSettings {
   feature_gamification: boolean;
   ads_enabled: boolean;
   daily_quotes: string[];
+  default_theme: 'dark' | 'light' | 'system';
+  tour_enabled: boolean;
+  tour_steps: string[];
   xp_habit_day: number;
   xp_clean_trade: number;
   xp_journal: number;
@@ -62,6 +65,9 @@ export const DEFAULT_CONFIG: AppConfig = {
     feature_gamification: true,
     ads_enabled: false,
     daily_quotes: ['Small promises, kept daily, build unshakable self-trust.'],
+    default_theme: 'dark',
+    tour_enabled: true,
+    tour_steps: [],
     xp_habit_day: 10,
     xp_clean_trade: 10,
     xp_journal: 5,

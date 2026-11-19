@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { useAuth } from '@/lib/auth';
@@ -6,16 +5,16 @@ import { APP_VERSION, compareVersions, refreshConfig, useAppConfig, type Announc
 import { usePrefs } from '@/lib/prefs';
 import { contactSupport } from '@/lib/support';
 import { colors, gradients, levelColor } from '@/theme';
-import { Button, Icon, Row, Screen, Txt } from './ui';
+import { Button, Gradient, Icon, Row, Screen, Txt } from './ui';
 
 const PLAY_STORE_FALLBACK = 'market://details?id=com.anchor.discipline';
 
 function FullScreen({ icon, title, message, children }: { icon: string; title: string; message: string; children?: ReactNode }) {
   return (
     <Screen scroll={false} contentStyle={{ justifyContent: 'center', alignItems: 'center', gap: 18 }}>
-      <LinearGradient colors={gradients.primary} style={{ width: 84, height: 84, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}>
+      <Gradient colors={gradients.primary} style={{ width: 84, height: 84, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={icon} size={42} />
-      </LinearGradient>
+      </Gradient>
       <Txt variant="title" center>{title}</Txt>
       <Txt variant="caption" center style={{ maxWidth: 320, fontSize: 16, lineHeight: 23 }}>{message}</Txt>
       <View style={{ alignSelf: 'stretch', gap: 10, marginTop: 12 }}>{children}</View>

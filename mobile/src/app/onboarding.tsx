@@ -1,8 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Button, haptic, Icon, Row, Screen, Txt } from '@/components/ui';
+import { Button, Gradient, haptic, Icon, Row, Screen, Txt } from '@/components/ui';
 import { CATEGORIES } from '@/lib/catalog';
 import { requestReminderPermission } from '@/lib/notifications';
 import { usePrefs } from '@/lib/prefs';
@@ -53,9 +52,9 @@ function Welcome({ onNext }: { onNext: () => void }) {
   return (
     <View style={{ flex: 1, justifyContent: 'space-between', gap: 32 }}>
       <View style={{ gap: 28 }}>
-        <LinearGradient colors={gradients.primary} style={{ width: 84, height: 84, borderRadius: 28, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
+        <Gradient colors={gradients.primary} style={{ width: 84, height: 84, borderRadius: 28, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
           <Icon name="anchor" size={44} />
-        </LinearGradient>
+        </Gradient>
         <View style={{ gap: 12 }}>
           <Txt variant="title" center style={{ fontSize: 32, lineHeight: 38 }}>Keep the promises you make to yourself</Txt>
           <Txt variant="caption" center style={{ fontSize: 16, lineHeight: 23 }}>

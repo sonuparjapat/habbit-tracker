@@ -5,6 +5,7 @@ import { useAuth } from './auth';
 import { queryClient } from './queryClient';
 import type {
   Dashboard,
+  Forest,
   DayStatus,
   Entry,
   Expense,
@@ -187,6 +188,9 @@ export interface NewTrade {
   note?: string | null;
   override?: boolean;
   breakReason?: string;
+  /** Quick day log: one entry standing for several trades */
+  tradeCount?: number;
+  quick?: boolean;
 }
 
 export function useCreateTrade(trackerId: string) {
@@ -220,3 +224,6 @@ export function sendFeedback(body: { kind: 'bug' | 'idea' | 'question' | 'other'
 export function useDeleteExpense() {
   return useMutation({ mutationFn: (id: string) => del(`/expenses/${id}`), onSuccess: invalidateAll });
 }
+
+export const useForest = (enabled = true) =>
+  useQuery({ queryKey: ['forest'], queryFn: () => get<Forest>('/dashboard/forest'), enabled: useSignedIn() && enabled });

@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useAppConfig } from '@/lib/config';
@@ -26,7 +26,9 @@ function Pill({ icon, label, color }: { icon: string; label: string; color: stri
 export function TradingCard({ tracker, today, currency, link = true }: { tracker: TradingTracker; today: TradingToday; currency: string; link?: boolean }) {
   const s = today.status;
   const c = tracker.config;
-  const lockedColor = s.lossLimitHit ? colors.red : s.targetHit ? colors.green : colors.amber;
+  const lockedColor = s.coolOff || s.lossLimitHit || s.weeklyLimitHit || s.monthlyLimitHit ? colors.red : s.targetHit ? colors.green : colors.amber;
+  const lockLabel = s.coolOff ? 'Cool-off' : s.tiltUntil ? 'Pause' : s.monthlyLimitHit || s.weeklyLimitHit ? 'Limit hit' : 'Closed';
+  const weekShare = s.weeklyMaxLoss > 0 && s.weekPnl < 0 ? Math.min(1, -s.weekPnl / s.weeklyMaxLoss) : 0;
   const market = MARKETS.find((m) => m.key === c.market)?.label ?? 'Trading';
   const hasRange = s.profitTarget > 0 || s.maxLoss > 0;
 
@@ -40,7 +42,7 @@ export function TradingCard({ tracker, today, currency, link = true }: { tracker
             <Txt variant="caption" numberOfLines={1}>{[market, c.instrument].filter(Boolean).join(' · ')}{s.isTradingDay ? '' : ' · day off'}</Txt>
           </View>
         </Row>
-        {s.locked ? <Pill icon="lock" label="Closed" color={lockedColor} /> : null}
+        {s.locked ? <Pill icon={s.coolOff ? 'snowflake' : s.tiltUntil ? 'timer-sand' : 'lock'} label={lockLabel} color={lockedColor} /> : null}
       </Row>
 
       <View style={{ marginTop: 22, gap: 12 }}>
@@ -53,6 +55,17 @@ export function TradingCard({ tracker, today, currency, link = true }: { tracker
               <Txt variant="caption">{s.profitTarget ? `Target ${money(s.profitTarget, currency)}` : ' '}</Txt>
             </Row>
           </>
+        ) : null}
+        {s.weeklyMaxLoss > 0 ? (
+          <View style={{ gap: 6, marginTop: 4 }}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Txt variant="caption">This week</Txt>
+              <Txt variant="caption" color={weekShare >= 1 ? colors.red : weekShare >= 0.7 ? colors.amber : colors.textMuted}>
+                {money(s.weekPnl, currency, { sign: true })} · limit {money(-s.weeklyMaxLoss, currency)}
+              </Txt>
+            </Row>
+            <ProgressBar value={weekShare} height={5} color={weekShare >= 0.7 ? colors.red : colors.amber} />
+          </View>
         ) : null}
       </View>
 
@@ -71,8 +84,9 @@ export function TradingCard({ tracker, today, currency, link = true }: { tracker
           style={{ flex: 1 }}
           onPress={() => router.push(`/tracker/${tracker.id}/trade`)}
         />
-        <Button title="Journal" icon="notebook-edit-outline" variant="secondary" small style={{ flex: 1 }} onPress={() => router.push(`/tracker/${tracker.id}/journal`)} />
+        <Button title="Quick log" icon="lightning-bolt" variant="secondary" small style={{ flex: 1 }} onPress={() => router.push(`/tracker/${tracker.id}/quick` as Href)} />
       </Row>
+      <Button title="Write today's journal" icon="notebook-edit-outline" variant="ghost" small style={{ marginTop: 6 }} onPress={() => router.push(`/tracker/${tracker.id}/journal`)} />
     </Card>
   );
 }

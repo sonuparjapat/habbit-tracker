@@ -1,8 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
-import { AlertCard, Button, Card, Chip, haptic, Icon, Input, Loading, Row, Screen, SectionTitle, Txt } from '@/components/ui';
+import { AlertCard, Button, Card, Chip, Gradient, haptic, Icon, Input, Loading, Row, Screen, SectionTitle, Txt } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { addDays, money } from '@/lib/format';
 import { useCreateExpense, useTracker, useTrackerToday } from '@/lib/queries';
@@ -32,12 +31,12 @@ export default function AddExpense() {
     const broke = result.length > 0;
     return (
       <Screen edges={['bottom']} contentStyle={{ gap: 16, paddingTop: 12 }}>
-        <LinearGradient colors={broke ? gradients.red : gradients.green} style={{ borderRadius: 28, padding: 28, alignItems: 'center', gap: 8 }}>
+        <Gradient colors={broke ? gradients.red : gradients.green} style={{ borderRadius: 28, padding: 28, alignItems: 'center', gap: 8 }}>
           <Icon name={broke ? 'alert-octagon' : 'check-circle'} size={56} />
           <Txt variant="title" center>{broke ? 'Over budget' : 'Logged'}</Txt>
           <Txt variant="hero" center>{money(value, currency)}</Txt>
           <Txt center style={{ opacity: 0.9 }}>{broke ? 'It’s recorded honestly. Tomorrow is a fresh start.' : 'Every expense logged is awareness gained.'}</Txt>
-        </LinearGradient>
+        </Gradient>
         {result.map((b) => (
           <AlertCard key={b.rule} alert={{ level: 'danger', title: b.label ?? b.rule, message: b.description }} />
         ))}

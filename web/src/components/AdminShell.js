@@ -3,6 +3,24 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, use, useEffect, useState } from 'react';
+
+/** Light / dark switch for the admin (saved in this browser). */
+function ThemeToggle() {
+  const [theme, setTheme] = useState(() => (typeof document !== 'undefined' && document.documentElement.dataset.theme) || 'dark');
+  const flip = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try {
+      localStorage.setItem('theme', next);
+    } catch {}
+    setTheme(next);
+  };
+  return (
+    <button className="theme-toggle" onClick={flip} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} aria-label="Toggle light or dark mode">
+      {theme === 'dark' ? '☀️' : '🌙'}
+    </button>
+  );
+}
 import { get } from '@/lib/api';
 import { can, PERMISSIONS as P, ROLE_BADGE } from '@/lib/roles';
 import { ToastProvider } from './admin/kit';
@@ -92,6 +110,7 @@ export function AdminShell({ children }) {
           <div className="brand">
             <div className="brand-mark">⚓</div>
             Anchor <span className="badge violet">Admin</span>
+            <ThemeToggle />
           </div>
           {visible.map((n) =>
             n.group ? (

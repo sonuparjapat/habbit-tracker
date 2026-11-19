@@ -5,6 +5,8 @@ import { HabitCard, SpendingCard, TradingCard } from '@/components/cards';
 import { CelebrationModal, LevelBar, type Celebration } from '@/components/game';
 import { Banners } from '@/components/gates';
 import { GuestHome } from '@/components/guest';
+import { ForestPreview } from '@/components/forest';
+import { GuidedTour, parseTourSteps } from '@/components/tour';
 import { AlertCard, Button, Card, EmptyState, ErrorView, Icon, IconButton, Loading, Ring, Row, scoreColor, Screen, SectionTitle, Txt } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { greeting, longDate } from '@/lib/format';
@@ -45,6 +47,7 @@ export default function Today() {
   const [showAllAlerts, setShowAllAlerts] = useState(false);
   const { settings } = useAppConfig();
   const celebratedLevel = usePrefs((s) => s.celebratedLevel);
+  const tourDone = usePrefs((s) => s.tourDone);
   const updatePrefs = usePrefs((s) => s.update);
   const markSeen = useMarkAchievementsSeen();
   const [closedCelebration, setClosedCelebration] = useState<string | null>(null);
@@ -71,6 +74,14 @@ export default function Today() {
 
   if (!signedIn) return <GuestHome />;
   if (isLoading) return <Loading />;
+
+  // Guided tour: once per device after sign-in, steps edited in Admin → App settings
+  const tourSteps = parseTourSteps(settings.tour_steps);
+  const showTour = settings.tour_enabled && !tourDone && tourSteps.length > 0 && !pending;
+  const finishTour = () => {
+    void updatePrefs({ tourDone: true });
+    if (data && data.cards.length === 0) router.push('/tracker/new');
+  };
 
   const quotes = settings.daily_quotes.length ? settings.daily_quotes : [''];
   const quote = quotes[new Date().getDate() % quotes.length];
@@ -117,6 +128,7 @@ export default function Today() {
           {game ? (
             <View style={{ marginBottom: 12 }}>
               <LevelBar game={game} onPress={() => router.push('/achievements' as Href)} />
+              <ForestPreview />
             </View>
           ) : null}
           <Card>
@@ -184,6 +196,7 @@ export default function Today() {
         </>
       ) : null}
       <CelebrationModal celebration={pending && pendingKey !== closedCelebration ? pending : null} onClose={closeCelebration} />
+      <GuidedTour steps={tourSteps} visible={showTour} onDone={finishTour} />
     </Screen>
   );
 }

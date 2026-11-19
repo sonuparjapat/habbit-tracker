@@ -15,6 +15,7 @@ import { computeSpendingStats } from '../services/spendingStats.js';
 import { EMOTIONS, parseConfig } from '../services/trackerConfig.js';
 import {
   createdDate,
+  dayStatusFor,
   getTracker,
   trackingStart,
   loadBreaks,
@@ -252,6 +253,9 @@ export const tradeFields = {
   followedPlan: z.boolean().default(true),
   checklistDone: z.array(z.string().max(120)).max(20).default([]),
   note: z.string().max(4000).nullable().optional(),
+  /** Quick day log: one entry standing for several trades, recorded after the fact */
+  tradeCount: z.number().int().min(1).max(500).default(1),
+  quick: z.boolean().default(false),
 };
 
 const createTradeSchema = z.object({
@@ -289,8 +293,7 @@ trackersRouter.get('/:id/status', async (req, res) => {
   requireType(t, 'trading');
   const cfg = parseConfig('trading', t.config);
   const date = req.query.date ? parse(dateStr, req.query.date) : todayIn(req.user.timezone);
-  const trades = await loadTrades(t.id, date, date);
-  res.json({ status: computeDayStatus(cfg, date, weekdayOf(date), trades, req.user.currency) });
+  res.json({ status: await dayStatusFor({ query }, t.id, cfg, date, req.user) });
 });
 
 trackersRouter.post('/:id/trades', async (req, res) => {
@@ -305,12 +308,9 @@ trackersRouter.post('/:id/trades', async (req, res) => {
 
   const result = await withTransaction(async (db) => {
     await db.query('SELECT id FROM trackers WHERE id = $1 FOR UPDATE', [t.id]); // serialize per tracker
-    const { rows: existing } = await db.query(
-      'SELECT (pnl - fees)::float8 AS net FROM trades WHERE tracker_id = $1 AND trade_date = $2',
-      [t.id, date],
-    );
-    const status = computeDayStatus(cfg, date, weekdayOf(date), existing, user.currency);
-    if (status.locked && date === today) {
+    const status = await dayStatusFor(db, t.id, cfg, date, user);
+    // A quick day log records what already happened, so it is never blocked — but it is still judged
+    if (status.locked && date === today && !body.quick) {
       if (!body.override) throw new HttpError(409, 'Your trading day is closed', 'DAY_LOCKED', { status });
       if (!body.breakReason || body.breakReason.length < 10)
         throw new HttpError(400, 'Write down honestly why you are breaking your rule (at least 10 characters)', 'REASON_REQUIRED', { status });
@@ -318,23 +318,22 @@ trackersRouter.post('/:id/trades', async (req, res) => {
 
     const { rows } = await db.query(
       `INSERT INTO trades (tracker_id, user_id, trade_date, instrument, direction, quantity, entry_price, exit_price,
-                           pnl, fees, emotion_before, emotion_after, setup, followed_plan, checklist_done, note)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
+                           pnl, fees, emotion_before, emotion_after, setup, followed_plan, checklist_done, note, trade_count, quick)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id`,
       [t.id, user.id, date, body.instrument || cfg.instrument || null, body.direction ?? null, body.quantity ?? null,
        body.entryPrice ?? null, body.exitPrice ?? null, body.pnl, body.fees, body.emotionBefore ?? null,
-       body.emotionAfter ?? null, body.setup ?? null, body.followedPlan, JSON.stringify(body.checklistDone), body.note ?? null],
+       body.emotionAfter ?? null, body.setup ?? null, body.followedPlan, JSON.stringify(body.checklistDone), body.note ?? null, body.tradeCount, body.quick],
     );
     const tradeId = rows[0].id;
     await reevaluateTradingDay(db, {
-      trackerId: t.id, userId: user.id, date, weekday: weekdayOf(date), cfg, currency: user.currency,
+      trackerId: t.id, userId: user.id, date, cfg, currency: user.currency, timeZone: user.timezone,
       newReasons: body.breakReason ? { [tradeId]: body.breakReason } : undefined,
     });
     const { rows: breaks } = await db.query('SELECT rule, description, reason FROM rule_breaks WHERE trade_id = $1', [tradeId]);
-    const { rows: after } = await db.query('SELECT (pnl - fees)::float8 AS net FROM trades WHERE tracker_id = $1 AND trade_date = $2', [t.id, date]);
     return {
       tradeId,
       breaks: breaks.map((b) => ({ ...b, label: RULE_LABELS[b.rule] ?? b.rule })),
-      status: computeDayStatus(cfg, date, weekdayOf(date), after, user.currency),
+      status: await dayStatusFor(db, t.id, cfg, date, user),
     };
   });
   res.status(201).json(result);

@@ -82,6 +82,16 @@ export const config = {
 if (isProd && config.jwtSecret.length < 32) {
   throw new Error('JWT_SECRET must be at least 32 characters in production');
 }
+/** Why email cannot send right now (null = configured). Shown at startup and in Admin → System. */
+config.email.problem =
+  config.email.provider === 'brevo' && !brevoKey
+    ? 'EMAIL_PROVIDER is brevo but BREVO_API_KEY is empty — no emails are sent.'
+    : config.email.provider === 'smtp' && !(mailUser && mailPass)
+      ? 'EMAIL_PROVIDER is smtp but MAIL_USER / MAIL_PASS are empty — no emails are sent.'
+      : config.email.provider === 'console' && isProd
+        ? 'No email provider configured — emails are only printed in the server log. Set BREVO_API_KEY.'
+        : null;
+
 if (config.email.provider === 'smtp' && !config.email.smtp.host) {
   throw new Error('SMTP email needs SMTP_HOST (or a Gmail MAIL_USER) — see .env.example');
 }

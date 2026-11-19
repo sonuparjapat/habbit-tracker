@@ -14,6 +14,7 @@ import { HttpError, isUuid, parse } from '../middleware/errors.js';
 import { audit } from '../services/audit.js';
 import { sendEmail } from '../services/email.js';
 import { PERMISSIONS as P } from '../services/roles.js';
+import { RULE_LABELS } from '../services/rules.js';
 import { getSettings, resetSetting, saveSettings, SETTINGS } from '../services/settings.js';
 
 export const adminContentRouter = Router();
@@ -184,7 +185,7 @@ adminContentRouter.delete('/feedback/:id', requirePermission(P.FEEDBACK_MANAGE),
 /* -------------------------------- Analytics -------------------------------- */
 
 adminContentRouter.get('/analytics', requirePermission(P.DASHBOARD_VIEW), async (_req, res) => {
-  const [active, templates, feedback, achievements, retention] = await Promise.all([
+  const [active, templates, feedback, achievements, retention, breaks] = await Promise.all([
     // Members who logged anything, per day, last 30 days
     query(`SELECT to_char(d, 'YYYY-MM-DD') AS date,
                   (SELECT count(DISTINCT user_id) FROM (
@@ -200,6 +201,8 @@ adminContentRouter.get('/analytics', requirePermission(P.DASHBOARD_VIEW), async 
     // Of members who joined 8–37 days ago, how many were active in the last 7 days
     query(`SELECT count(*) AS cohort, count(*) FILTER (WHERE last_active_at > now() - interval '7 days') AS retained
              FROM members WHERE role = 3 AND created_at BETWEEN now() - interval '37 days' AND now() - interval '8 days'`),
+    // Which rules members break most (last 30 days) — shows where people struggle
+    query(`SELECT rule, count(*) AS n FROM rule_breaks WHERE break_date > current_date - 30 GROUP BY rule ORDER BY n DESC LIMIT 12`),
   ]);
   const r = retention.rows[0];
   res.json({
@@ -207,6 +210,7 @@ adminContentRouter.get('/analytics', requirePermission(P.DASHBOARD_VIEW), async 
     topTemplates: templates.rows,
     feedback: feedback.rows[0],
     achievements: achievements.rows,
+    ruleBreaks: breaks.rows.map((b) => ({ rule: b.rule, label: RULE_LABELS[b.rule] ?? b.rule, n: b.n })),
     retention: { cohort: r.cohort, retained: r.retained, rate: r.cohort ? Math.round((r.retained / r.cohort) * 100) : null },
   });
 });
@@ -235,12 +239,13 @@ adminContentRouter.get('/system', requirePermission(P.SYSTEM_VIEW), async (_req,
       tables,
     },
     migrations: { applied, pending: files.filter((f) => f.endsWith('.sql') && !appliedSet.has(f)) },
-    email: { provider: config.email.provider, from: `${config.email.from.name} <${config.email.from.email}>` },
+    email: { provider: config.email.provider, from: `${config.email.from.name} <${config.email.from.email}>`, problem: config.email.problem },
   });
 });
 
 adminContentRouter.post('/system/test-email', requirePermission(P.SYSTEM_VIEW), async (req, res) => {
   const { to } = parse(z.object({ to: z.string().trim().pipe(z.email('Enter a valid email')) }), req.body);
+  if (config.email.problem) throw new HttpError(503, config.email.problem, 'EMAIL_NOT_CONFIGURED');
   try {
     await sendEmail({
       to,

@@ -11,6 +11,7 @@ async function main() {
 
   const server = createApp().listen(config.port, '0.0.0.0', () => {
     console.log(`${config.appName} API listening on :${config.port} (email: ${config.email.provider})`);
+    if (config.email.problem) console.warn(`⚠️  EMAIL NOT WORKING: ${config.email.problem}`);
   });
 
   // Housekeeping: used/expired one-time codes are useless after a day

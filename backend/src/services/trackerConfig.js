@@ -33,6 +33,17 @@ export const tradingConfigSchema = z.object({
   /** 0 = no loss limit */
   dailyMaxLoss: money.default(0),
   stopAfterTarget: z.boolean().default(true),
+  /* Protection (0 = off) */
+  weeklyMaxLoss: money.default(0),
+  monthlyMaxLoss: money.default(0),
+  /** A single trade losing more than this is a rule break ("no stop-loss") */
+  maxLossPerTrade: money.default(0),
+  /** A day losing this much locks the next `coolOffDays` day(s) */
+  coolOffLoss: money.default(0),
+  coolOffDays: z.number().int().min(1).max(14).default(1),
+  /** After this many losing trades in a row, a forced pause (0 = off) */
+  tiltLosses: z.number().int().min(0).max(10).default(2),
+  tiltPauseMinutes: z.number().int().min(5).max(240).default(30),
   tradingDays: weekdays.default([1, 2, 3, 4, 5]),
   checklist: z.array(z.string().min(1).max(120)).max(15).default(DEFAULT_CHECKLIST),
   customRules: z.array(z.string().min(1).max(160)).max(20).default([]),
