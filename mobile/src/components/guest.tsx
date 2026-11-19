@@ -243,7 +243,7 @@ export function GuestHome() {
       </Row>
 
       {/* Hero */}
-      <Gradient colors={['#271D5E', '#121628']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: 26, borderWidth: 1, borderColor: '#352B78' }}>
+      <Gradient colors={['#271D5E', '#121628']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} sheen style={{ borderRadius: radius.xl, padding: 26, borderWidth: 1, borderColor: '#352B78' }}>
         <Txt variant="title" style={{ fontSize: 30, lineHeight: 37 }}>Build habits that stick. Break the ones that don’t.</Txt>
         <Txt color="#B8BFD0" style={{ marginTop: 12 }}>
           Workouts, reading, sleep, quitting smoking, spending less — pick what matters to you, set your own goal, and Anchor keeps you on track every day.
@@ -307,7 +307,7 @@ export function GuestHome() {
         ))}
       </Card>
 
-      <Gradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: 28, marginTop: 28, gap: 12, alignItems: 'center' }}>
+      <Gradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} sheen glow={colors.primary} style={{ borderRadius: radius.xl, padding: 28, marginTop: 28, gap: 12, alignItems: 'center' }}>
         <Icon name="anchor" size={34} />
         <Txt variant="h2" center>Small steps. Every day.</Txt>
         <Txt center style={{ opacity: 0.9 }}>That’s how real change happens. Start with one habit today.</Txt>

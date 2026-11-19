@@ -1,6 +1,20 @@
 /**
  * Admin: settings, announcements, feedback inbox, system health and analytics.
  * Mounted under /api/admin (requireAuth + requireAdmin already applied); each route checks its permission.
+ *
+ *   GET    /api/admin/settings               every setting with its value (form is built from this)
+ *   PUT    /api/admin/settings               save changed settings
+ *   DELETE /api/admin/settings/:key          reset one setting to its default
+ *   GET    /api/admin/announcements          banners shown in the app
+ *   POST   /api/admin/announcements          add one
+ *   PATCH  /api/admin/announcements/:id      edit / activate / deactivate
+ *   DELETE /api/admin/announcements/:id      delete
+ *   GET    /api/admin/feedback               feedback inbox (?status=new)
+ *   PATCH  /api/admin/feedback/:id           change status, add a note
+ *   DELETE /api/admin/feedback/:id           delete
+ *   GET    /api/admin/analytics              growth, retention, popular trackers, rules broken most
+ *   GET    /api/admin/system                 API / database / migrations / email health
+ *   POST   /api/admin/system/test-email      send a test email
  */
 import { Router } from 'express';
 import { readdir } from 'node:fs/promises';
@@ -14,7 +28,7 @@ import { HttpError, isUuid, parse } from '../middleware/errors.js';
 import { audit } from '../services/audit.js';
 import { sendEmail } from '../services/email.js';
 import { PERMISSIONS as P } from '../services/roles.js';
-import { RULE_LABELS } from '../services/rules.js';
+import { ruleLabel } from '../services/rules.js';
 import { getSettings, resetSetting, saveSettings, SETTINGS } from '../services/settings.js';
 
 export const adminContentRouter = Router();
@@ -138,7 +152,7 @@ adminContentRouter.get('/feedback', requirePermission(P.FEEDBACK_MANAGE), async 
   const q = parse(
     z.object({
       status: z.enum(['new', 'in_progress', 'resolved']).optional(),
-      kind: z.enum(['bug', 'idea', 'question', 'other']).optional(),
+      kind: z.enum(['bug', 'idea', 'question', 'other', 'crash']).optional(),
       page: z.coerce.number().int().min(1).default(1),
     }),
     req.query,
@@ -210,7 +224,7 @@ adminContentRouter.get('/analytics', requirePermission(P.DASHBOARD_VIEW), async 
     topTemplates: templates.rows,
     feedback: feedback.rows[0],
     achievements: achievements.rows,
-    ruleBreaks: breaks.rows.map((b) => ({ rule: b.rule, label: RULE_LABELS[b.rule] ?? b.rule, n: b.n })),
+    ruleBreaks: breaks.rows.map((b) => ({ rule: b.rule, label: ruleLabel(b.rule), n: b.n })),
     retention: { cohort: r.cohort, retained: r.retained, rate: r.cohort ? Math.round((r.retained / r.cohort) * 100) : null },
   });
 });

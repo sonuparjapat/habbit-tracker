@@ -21,6 +21,8 @@ export const habitConfigSchema = z.object({
   days: weekdays.min(1).default([0, 1, 2, 3, 4, 5, 6]),
   reminderTime: time.nullable().default(null),
   why: z.string().max(280).default(''),
+  /** quit / limit habits: what one bad day costs (money). Used for the "money saved" game. 0 = not set */
+  costPerDay: money.default(0),
 });
 
 export const tradingConfigSchema = z.object({

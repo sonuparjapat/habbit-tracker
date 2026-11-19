@@ -1,4 +1,13 @@
-/** Edit / delete individual trades and expenses (by their own id). */
+/**
+ * Edit or delete one trade / one expense by its own id.
+ * After every change the affected day (trades) or month (expenses) is judged again,
+ * so rule breaks always match what is saved.
+ *
+ *   PATCH  /api/trades/:id      edit a trade
+ *   DELETE /api/trades/:id      delete a trade
+ *   PATCH  /api/expenses/:id    edit an expense
+ *   DELETE /api/expenses/:id    delete an expense
+ */
 import { Router } from 'express';
 import { z } from 'zod';
 import { query, withTransaction } from '../db/pool.js';
@@ -7,7 +16,8 @@ import { reevaluateSpendingMonth, reevaluateTradingDay } from '../services/rules
 import { parseConfig } from '../services/trackerConfig.js';
 import { getTracker } from '../services/trackers.js';
 import { todayIn, weekdayOf } from '../utils/date.js';
-import { expenseFields, tradeFields } from './trackers.js';
+import { expenseFields } from './trackerExpenses.js';
+import { tradeFields } from './trackerTrades.js';
 
 export const tradesRouter = Router();
 export const expensesRouter = Router();

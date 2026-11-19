@@ -26,6 +26,12 @@ export const RULE_LABELS = {
 
 import { addDays, weekdayOf } from '../utils/date.js';
 
+/** Human-readable name of a rule, e.g. "max_trades" -> "Overtrading". */
+export const ruleLabel = (rule) => RULE_LABELS[rule] ?? rule;
+
+/** Adds a readable `label` to each rule break: [{ rule: 'max_trades' }] -> [{ rule: 'max_trades', label: 'Overtrading' }] */
+export const withLabels = (breaks) => breaks.map((b) => ({ ...b, label: ruleLabel(b.rule) }));
+
 export const round2 = (n) => Math.round(n * 100) / 100;
 
 export function money(amount, currency) {

@@ -7,6 +7,7 @@ import * as SystemUI from 'expo-system-ui';
 import { useEffect, type ReactNode } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { CrashScreen } from '@/components/CrashScreen';
 import { AppGates } from '@/components/gates';
 import { useAuth } from '@/lib/auth';
 import { useAppConfig } from '@/lib/config';
@@ -17,6 +18,9 @@ import { queryClient } from '@/lib/queryClient';
 import { applyTheme, colors, type ThemeMode } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// If any screen crashes: a friendly screen + an automatic report to Admin → Feedback
+export const ErrorBoundary = CrashScreen;
 
 // The home tabs are the base of the app: sign-in and other sheets always open on top of them.
 export const unstable_settings = { anchor: '(tabs)' };
@@ -142,6 +146,7 @@ export default function RootLayout() {
                     <Stack.Screen name="verify-email" options={{ title: 'Verify email', ...modal }} />
                     <Stack.Screen name="achievements" options={{ title: 'Level & badges' }} />
                     <Stack.Screen name="forest" options={{ title: 'Your forest' }} />
+                    <Stack.Screen name="games" options={{ title: 'Arcade' }} />
                     <Stack.Screen name="account/password" options={{ title: 'Change password', ...modal }} />
                     <Stack.Screen name="account/delete" options={{ title: 'Delete account', ...modal }} />
                     <Stack.Screen name="tracker/new" options={{ title: 'New tracker', ...modal }} />

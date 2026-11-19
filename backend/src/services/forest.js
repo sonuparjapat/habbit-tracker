@@ -27,7 +27,8 @@ export function treeFor(good, bad) {
 
 const DATE = (col) => `to_char(${col}, 'YYYY-MM-DD')`;
 
-async function dailyActivity(userId) {
+/** Map of 'YYYY-MM-DD' -> { good, bad } for every day the member logged anything. */
+export async function dailyActivity(userId) {
   const { rows } = await query(
     `SELECT d, sum(good)::int AS good, sum(bad)::int AS bad FROM (
        SELECT ${DATE('entry_date')} AS d, count(*) AS good, 0 AS bad FROM daily_entries WHERE user_id = $1 AND completed GROUP BY 1

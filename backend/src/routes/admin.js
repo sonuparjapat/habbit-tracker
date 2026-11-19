@@ -2,6 +2,19 @@
  * Admin API — for super admins (role 1) and admins (role 2), gated per route by permissions
  * (see src/services/roles.js). Privacy rule: staff see accounts and aggregate counts,
  * never the content of a user's trades, journals or expenses.
+ *
+ *   GET    /api/admin/overview                  counts for the dashboard
+ *   GET    /api/admin/users                     search / filter / page through members
+ *   GET    /api/admin/users/:id                 one member
+ *   PATCH  /api/admin/users/:id                 change role, suspend / unsuspend
+ *   POST   /api/admin/users/:id/logout          sign them out everywhere
+ *   POST   /api/admin/users/:id/verify-email    mark their email verified
+ *   DELETE /api/admin/users/:id                 delete the account
+ *   GET    /api/admin/templates                 tracker templates
+ *   POST   /api/admin/templates                 add a template
+ *   PATCH  /api/admin/templates/:id             edit a template
+ *   DELETE /api/admin/templates/:id             delete a template
+ *   GET    /api/admin/audit-logs                who did what, when
  */
 import { Router } from 'express';
 import { z } from 'zod';

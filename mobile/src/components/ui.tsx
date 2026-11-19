@@ -1,9 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { createContext, useContext, type ComponentProps, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Platform,
   Pressable,
   RefreshControl,
@@ -20,7 +22,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
-import { colors, gradients, levelColor, radius, space, themed } from '@/theme';
+import { colors, gradients, isDark, levelColor, radius, space, themed } from '@/theme';
 import type { Insight } from '@/lib/types';
 
 export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -28,13 +30,66 @@ export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 /** Text/icon colour forced by a coloured background (white on gradients, in both themes). */
 const InkContext = createContext<string | null>(null);
 
-/** A coloured gradient panel: text and icons inside it are white in light and dark mode. */
-export function Gradient({ children, ...props }: ComponentProps<typeof LinearGradient>) {
+/**
+ * A coloured gradient panel: text and icons inside it are white in light and dark mode.
+ * sheen: a soft band of light sweeps across it now and then (a glass reflection).
+ * glow:  a coloured halo around it.
+ */
+export function Gradient({ children, sheen, glow, style, ...props }: ComponentProps<typeof LinearGradient> & { sheen?: boolean; glow?: string }) {
   return (
-    <LinearGradient {...props}>
-      <InkContext.Provider value="#FFFFFF">{children}</InkContext.Provider>
+    <LinearGradient {...props} style={[style, sheen ? { overflow: 'hidden' } : null, glow ? { boxShadow: `0 10px 30px ${glow}66` } : null]}>
+      <InkContext.Provider value="#FFFFFF">
+        {children}
+        {sheen ? <Sheen /> : null}
+      </InkContext.Provider>
     </LinearGradient>
   );
+}
+
+/** A diagonal band of light that sweeps across its parent every few seconds (parent needs overflow: 'hidden'). */
+export function Sheen({ every = 4200 }: { every?: number }) {
+  const [x] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(x, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.delay(every),
+        Animated.timing(x, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [x, every]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        top: -60,
+        bottom: -60,
+        width: 70,
+        transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [-160, 620] }) }, { rotate: '20deg' }],
+      }}>
+      <LinearGradient
+        colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={{ flex: 1 }}
+      />
+    </Animated.View>
+  );
+}
+
+/** A number that counts up to its value (used for scores, savings, tree counts). */
+export function CountUp({ value, format = (n) => String(Math.round(n)), duration = 900, ...txt }: { value: number; format?: (n: number) => string; duration?: number } & Omit<ComponentProps<typeof Txt>, 'children'>) {
+  const [anim] = useState(() => new Animated.Value(0));
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    const id = anim.addListener(({ value: v }) => setShown(v));
+    Animated.timing(anim, { toValue: value, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    return () => anim.removeListener(id);
+  }, [anim, value, duration]);
+  return <Txt {...txt}>{format(shown)}</Txt>;
 }
 
 export function Icon({ name, size = 20, color }: { name: string; size?: number; color?: string }) {
@@ -151,6 +206,14 @@ export function Card({
     <LinearGradient
       colors={gradients.card}
       style={[styles.card, padded && { padding: space.lg }, accent ? { borderColor: accent } : null, style]}>
+      {/* Glass: a soft light on the top edge, like a reflection */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={isDark() ? ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0)'] : ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']}
+        style={StyleSheet.absoluteFill}
+        end={{ x: 0.5, y: 0.5 }}
+      />
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 18, right: 18, height: 1, backgroundColor: isDark() ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,1)' }} />
       <InkContext.Provider value={null}>{children}</InkContext.Provider>
     </LinearGradient>
   );
@@ -225,7 +288,11 @@ export function Button({
         style,
       ]}>
       {isGradient ? (
-        <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.button, pad]}>
+        <LinearGradient
+          colors={grad}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.button, pad, !disabled && { boxShadow: `0 6px 20px ${grad[0]}59` }]}>
           {inner}
         </LinearGradient>
       ) : (
@@ -521,10 +588,36 @@ export function EmptyState({ icon, title, message, action, onAction }: { icon: s
   );
 }
 
+/** One grey placeholder block that gently pulses while content loads. */
+export function Skeleton({ height, width = '100%', radius: r = radius.md, style }: { height: number; width?: number | `${number}%`; radius?: number; style?: StyleProp<ViewStyle> }) {
+  const [pulse] = useState(() => new Animated.Value(0.45));
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 750, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.45, duration: 750, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+  return (
+    <Animated.View style={[{ height, width, borderRadius: r, backgroundColor: colors.surfaceHigh, overflow: 'hidden', opacity: pulse }, style]}>
+      <Sheen every={300} />
+    </Animated.View>
+  );
+}
+
+/** Full-screen loading: a shimmering outline of a screen instead of a lonely spinner. */
 export function Loading() {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, backgroundColor: colors.bg }}>
-      <ActivityIndicator color={colors.primary} />
+    <View style={{ flex: 1, padding: space.lg, paddingTop: 70, gap: 14, backgroundColor: colors.bg }} accessibilityLabel="Loading" accessible>
+      <Skeleton height={14} width="35%" radius={7} />
+      <Skeleton height={30} width="70%" radius={10} />
+      <Skeleton height={130} radius={radius.lg} style={{ marginTop: 10 }} />
+      <Skeleton height={86} radius={radius.lg} />
+      <Skeleton height={86} radius={radius.lg} />
+      <Skeleton height={86} radius={radius.lg} />
     </View>
   );
 }

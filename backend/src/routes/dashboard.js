@@ -1,7 +1,16 @@
+/**
+ * The Today screen and the games.
+ *
+ *   GET  /api/dashboard                    every tracker's card for today + day score + XP / level
+ *   GET  /api/dashboard/forest             "Your forest"
+ *   GET  /api/dashboard/games              weekly boss, piggy banks, fortresses, money saved
+ *   POST /api/dashboard/achievements/seen  mark new badges as celebrated
+ */
 import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { HttpError } from '../middleware/errors.js';
 import { forestFor } from '../services/forest.js';
+import { gamesFor } from '../services/games.js';
 import { gameState, markAchievementsSeen } from '../services/gamification.js';
 import { getSettings } from '../services/settings.js';
 import { serializeTracker, todayFor } from '../services/trackers.js';
@@ -9,7 +18,7 @@ import { todayIn } from '../utils/date.js';
 
 export const dashboardRouter = Router();
 
-/** Everything the Today screen needs, in one request. */
+/** GET /api/dashboard — everything the Today screen needs, in one request. */
 dashboardRouter.get('/', async (req, res) => {
   const user = req.user;
   const [settings, { rows }] = await Promise.all([
@@ -48,14 +57,25 @@ dashboardRouter.get('/', async (req, res) => {
   });
 });
 
-/** "Your forest": a tree for every day you kept your promises. */
-dashboardRouter.get('/forest', async (req, res) => {
+/** Games can be switched off by the admin (App settings → Features → Gamification). */
+async function requireGames() {
   const settings = await getSettings();
   if (!settings.feature_gamification) throw new HttpError(404, 'Games are switched off right now.', 'DISABLED');
+}
+
+/** GET /api/dashboard/forest — "Your forest": a tree for every day you kept your promises. */
+dashboardRouter.get('/forest', async (req, res) => {
+  await requireGames();
   res.json(await forestFor(req.user));
 });
 
-/** The app calls this after showing the "achievement unlocked" celebration. */
+/** GET /api/dashboard/games — weekly boss, piggy banks, fortresses and money saved. */
+dashboardRouter.get('/games', async (req, res) => {
+  await requireGames();
+  res.json(await gamesFor(req.user));
+});
+
+/** POST /api/dashboard/achievements/seen — the app calls this after showing the "achievement unlocked" celebration. */
 dashboardRouter.post('/achievements/seen', async (req, res) => {
   await markAchievementsSeen(req.user.id);
   res.status(204).end();

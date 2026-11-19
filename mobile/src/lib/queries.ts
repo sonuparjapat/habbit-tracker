@@ -6,6 +6,7 @@ import { queryClient } from './queryClient';
 import type {
   Dashboard,
   Forest,
+  Games,
   DayStatus,
   Entry,
   Expense,
@@ -227,3 +228,6 @@ export function useDeleteExpense() {
 
 export const useForest = (enabled = true) =>
   useQuery({ queryKey: ['forest'], queryFn: () => get<Forest>('/dashboard/forest'), enabled: useSignedIn() && enabled });
+
+export const useGames = () =>
+  useQuery({ queryKey: ['games'], queryFn: () => get<Games>('/dashboard/games'), enabled: useSignedIn() });

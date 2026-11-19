@@ -125,7 +125,7 @@ function QuickResult({ result, trackerId, currency }: { result: { breaks: RuleBr
 
   return (
     <Screen edges={['bottom']} contentStyle={{ gap: 16, paddingTop: 12 }}>
-      <Gradient colors={result.pnl >= 0 && !broke ? gradients.green : broke ? gradients.red : gradients.primary} style={{ borderRadius: 28, padding: 26, alignItems: 'center', gap: 8 }}>
+      <Gradient colors={result.pnl >= 0 && !broke ? gradients.green : broke ? gradients.red : gradients.primary} sheen style={{ borderRadius: 28, padding: 26, alignItems: 'center', gap: 8 }}>
         <Icon name={bigLoss ? 'heart-outline' : broke ? 'alert-octagon' : 'check-circle'} size={52} />
         <Txt variant="title" center>{bigLoss ? 'A tough day — logged honestly' : broke ? 'Day logged — rules were broken' : 'Day logged'}</Txt>
         <Txt variant="hero" center>{money(result.status.netPnl, currency, { sign: true })}</Txt>

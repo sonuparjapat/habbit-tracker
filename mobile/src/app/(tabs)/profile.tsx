@@ -159,6 +159,8 @@ export default function Profile() {
           <LinkRow icon="trophy-outline" label="Level & badges" onPress={() => router.push('/achievements' as Href)} />
           <Divider />
           <LinkRow icon="pine-tree" label="Your forest" onPress={() => router.push('/forest' as Href)} />
+          <Divider />
+          <LinkRow icon="gamepad-variant-outline" label="Arcade · boss, piggy bank, savings" onPress={() => router.push('/games' as Href)} />
         </Card>
       ) : null}
       {settings.tour_enabled ? (

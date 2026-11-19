@@ -1,3 +1,11 @@
+/**
+ * Public endpoints the app and website call (no sign-in needed).
+ *
+ *   GET  /api/meta        categories, markets, emotions — the lists the app shows
+ *   GET  /api/config      admin settings marked public + active announcements
+ *   GET  /api/templates   ready-made trackers ("Drink water", "No smoking"…)
+ *   POST /api/feedback    send a bug report / idea (works for guests too); the app also sends crash reports here
+ */
 import { Router } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { z } from 'zod';
@@ -51,7 +59,8 @@ const feedbackLimit = rateLimit({
 });
 
 const feedbackSchema = z.object({
-  kind: z.enum(['bug', 'idea', 'question', 'other']).default('other'),
+  /** 'crash' is sent automatically by the app when a screen crashes */
+  kind: z.enum(['bug', 'idea', 'question', 'other', 'crash']).default('other'),
   message: z.string().trim().min(5, 'Tell us a little more (at least 5 characters)').max(4000),
   email: z.string().trim().toLowerCase().pipe(z.email('Enter a valid email')).optional(),
   appVersion: z.string().max(20).optional(),
@@ -61,10 +70,11 @@ const feedbackSchema = z.object({
 metaRouter.post('/feedback', optionalAuth, feedbackLimit, async (req, res) => {
   const body = parse(feedbackSchema, req.body);
   const email = req.user?.email ?? body.email;
-  if (!email) throw new HttpError(400, 'Add your email so we can reply', 'VALIDATION');
+  // People need an email so we can reply; automatic crash reports don't
+  if (!email && body.kind !== 'crash') throw new HttpError(400, 'Add your email so we can reply', 'VALIDATION');
   await query(
     `INSERT INTO feedback (user_id, email, kind, message, app_version, platform) VALUES ($1, $2, $3, $4, $5, $6)`,
-    [req.user?.id ?? null, email, body.kind, body.message, body.appVersion ?? null, body.platform ?? null],
+    [req.user?.id ?? null, email ?? null, body.kind, body.message, body.appVersion ?? null, body.platform ?? null],
   );
   res.status(201).json({ ok: true, message: 'Thanks — we read every message.' });
 });

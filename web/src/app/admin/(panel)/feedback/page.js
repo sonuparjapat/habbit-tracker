@@ -6,7 +6,7 @@ import { del, patch } from '@/lib/api';
 import { fmtDateTime, timeAgo } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
 
-const KINDS = { bug: { label: 'Bug', tone: 'danger' }, idea: { label: 'Idea', tone: 'info' }, question: { label: 'Question', tone: 'warning' }, other: { label: 'Other', tone: 'neutral' } };
+const KINDS = { crash: { label: 'App crash', tone: 'danger' }, bug: { label: 'Bug', tone: 'danger' }, idea: { label: 'Idea', tone: 'info' }, question: { label: 'Question', tone: 'warning' }, other: { label: 'Other', tone: 'neutral' } };
 const STATUSES = { new: { label: 'New', tone: 'danger' }, in_progress: { label: 'In progress', tone: 'warning' }, resolved: { label: 'Resolved', tone: 'success' } };
 
 export default function FeedbackPage() {
@@ -48,7 +48,7 @@ export default function FeedbackPage() {
               <div className="row" style={{ gap: 8 }}>
                 <Badge tone={KINDS[f.kind].tone}>{KINDS[f.kind].label}</Badge>
                 <Badge tone={STATUSES[f.status].tone}>{STATUSES[f.status].label}</Badge>
-                <span className="small muted">{f.userName ?? 'Guest'} · {f.email}</span>
+                <span className="small muted">{f.userName ?? 'Guest'}{f.email ? ` · ${f.email}` : ''}</span>
               </div>
               <span className="small muted">{timeAgo(f.createdAt)}</span>
             </div>
@@ -80,13 +80,15 @@ function FeedbackDrawer({ item, onClose, onChanged }) {
         <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{item.message}</p>
       </div>
       <div className="small muted">
-        From <strong style={{ color: 'var(--text)' }}>{item.userName ?? 'Guest'}</strong> ({item.email}) · {fmtDateTime(item.createdAt)}
+        From <strong style={{ color: 'var(--text)' }}>{item.userName ?? 'Guest'}</strong>{item.email ? ` (${item.email})` : ''} · {fmtDateTime(item.createdAt)}
         {item.appVersion ? ` · app ${item.appVersion}` : ''}
         {item.platform ? ` · ${item.platform}` : ''}
       </div>
-      <a className="btn btn-primary" href={`mailto:${item.email}?subject=${subject}&body=${quoted}`} style={{ textDecoration: 'none' }}>
-        Reply by email
-      </a>
+      {item.email ? (
+        <a className="btn btn-primary" href={`mailto:${item.email}?subject=${subject}&body=${quoted}`} style={{ textDecoration: 'none' }}>
+          Reply by email
+        </a>
+      ) : null}
       <Field label="Internal note" hint="Only admins see this.">
         <textarea rows={3} style={{ fontFamily: 'inherit', fontSize: 14 }} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>

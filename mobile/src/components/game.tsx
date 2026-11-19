@@ -11,7 +11,7 @@ export function LevelBar({ game, onPress }: { game: Game; onPress?: () => void }
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Level ${game.level}, ${game.levelName}. ${toNext} XP to next level.`}>
       <View style={styles.levelCard}>
-        <Gradient colors={gradients.primary} style={styles.levelBadge}>
+        <Gradient colors={gradients.primary} style={styles.levelBadge} sheen glow={colors.primary}>
           <Txt variant="h2" style={{ fontSize: 18 }}>{game.level}</Txt>
         </Gradient>
         <View style={{ flex: 1, gap: 6 }}>

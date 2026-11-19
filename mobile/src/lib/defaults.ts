@@ -33,6 +33,7 @@ export const defaultHabitConfig: HabitConfig = {
   days: [0, 1, 2, 3, 4, 5, 6],
   reminderTime: null,
   why: '',
+  costPerDay: 0,
 };
 
 export const defaultSpendingConfig: SpendingConfig = {

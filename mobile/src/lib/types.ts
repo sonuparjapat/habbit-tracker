@@ -53,6 +53,8 @@ export interface HabitConfig {
   days: number[];
   reminderTime: string | null;
   why: string;
+  /** quit / limit: what one bad day costs — powers the "money saved" game (0 = not set) */
+  costPerDay: number;
 }
 
 export interface TradingConfig {
@@ -377,4 +379,56 @@ export interface Forest {
   next: (ForestStage & { treesToGo: number }) | null;
   todayTree: TreeStage;
   grid: ForestDay[];
+}
+
+/** Mini-games (GET /api/dashboard/games) */
+export interface Boss {
+  key: string;
+  name: string;
+  emoji: string;
+  taunt: string;
+  weekStart: string;
+  daysLeft: number;
+  maxHp: number;
+  hp: number;
+  hits: number;
+  heals: number;
+  defeated: boolean;
+}
+export interface PiggyBank {
+  trackerId: string;
+  name: string;
+  color: string;
+  saved: number;
+  goal: number;
+  fill: number;
+  daysUnder: number;
+  daysOver: number;
+}
+export interface Fortress {
+  trackerId: string;
+  name: string;
+  color: string;
+  bricks: number;
+  cracks: number;
+  streak: number;
+  level: { min: number; name: string; emoji: string; index: number };
+  next: { min: number; name: string; emoji: string; bricksToGo: number } | null;
+}
+export interface QuitSaving {
+  trackerId: string;
+  name: string;
+  color: string;
+  icon: string;
+  kind: 'quit' | 'limit';
+  costPerDay: number;
+  cleanDays: number;
+  saved: number;
+}
+export interface Games {
+  today: string;
+  boss: Boss;
+  piggyBanks: PiggyBank[];
+  fortresses: Fortress[];
+  quitSavings: QuitSaving[];
 }

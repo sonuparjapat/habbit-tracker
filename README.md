@@ -57,7 +57,12 @@ cd backend
 cp .env.example .env      # fill in DATABASE_URL, JWT_SECRET, BREVO_API_KEY, MAIL_FROM
 npm install
 npm run dev               # http://localhost:4000
+npm test                  # 20 test groups (~200 checks) against a throw-away in-memory database
 ```
+
+New to the code? Read [backend/README.md](backend/README.md) first. It's a 10-minute map of the whole backend.
+
+**Every push is checked** by GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)): backend tests, mobile typecheck and lint, website lint and build. A red ❌ on GitHub means something broke. Fix it before building the app.
 
 **The database sets itself up.** Every time the server starts, it:
 1. runs every new file in `src/db/migrations/*.sql`, in order, once (tracked in `schema_migrations`, protected by a Postgres advisory lock so parallel instances are safe)

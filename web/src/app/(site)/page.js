@@ -19,11 +19,65 @@ const AREAS = [
 const FEATURES = [
   { icon: '🔥', color: '#f59e0b', title: 'Streaks you won’t want to break', text: 'Every day you show up adds to your streak — and you’re warned before it’s about to reset.' },
   { icon: '🏆', color: '#ec4899', title: 'XP, levels & badges', text: 'Earn XP for every promise kept and unlock badges as you grow. Missing a day costs you.' },
+  { icon: '🌳', color: '#22c55e', title: 'Games you can’t fake', text: 'Grow a forest, beat a weekly boss, fill a piggy bank, build a fortress — all from what you really did.' },
   { icon: '🛡️', color: '#22c55e', title: 'Limits that hold', text: 'Cigarettes, screen time, spending, trades — set a daily limit and get stopped before you cross it.' },
   { icon: '📊', color: '#4f8bff', title: 'Honest progress reports', text: 'Weekly, monthly and yearly — your best days, weak spots and what’s really working.' },
   { icon: '⏰', color: '#7c5cff', title: 'Gentle reminders', text: 'Only at the times you choose, and only if you allow them.' },
   { icon: '🔒', color: '#f43f5e', title: 'Private by design', text: 'No contacts, location or camera. Nothing is sold. Export or delete your data anytime.' },
 ];
+
+// A sample forest for the preview: mostly trees, a few withered days, some empty
+// ('' = an empty plot of land)
+const FOREST = [
+  '🌳', '🌱', '🌳', '🌲', '🍂', '🌳', '🌳',
+  '', '🌱', '🌳', '🌲', '🌲', '🌳', '🍂',
+  '🌳', '🌱', '🌳', '🌳', '🌲', '🌳', '',
+  '🌳', '🌲', '🌳', '🌳', '🌱', '🌲', '🌳',
+];
+
+/** Three phone screens drawn in HTML/CSS, so the site shows the app without screenshots. */
+function AppPreview() {
+  return (
+    <div className="phones">
+      <div className="phone">
+        <div className="phone-label">Your forest</div>
+        <div className="phone-hero green">
+          <div style={{ fontSize: 44 }}>🌳</div>
+          <strong>Young woods</strong>
+          <span>32 trees grown from promises kept</span>
+        </div>
+        <div className="forest-grid">
+          {FOREST.map((t, i) => (
+            <span key={i} className={t === '🍂' ? 'plot dead' : t ? 'plot alive' : 'plot'}>{t}</span>
+          ))}
+        </div>
+      </div>
+
+      <div className="phone tall">
+        <div className="phone-label">Boss of the week</div>
+        <div className="phone-hero boss">
+          <div className="boss-sprite">🦥</div>
+          <strong>The Procrastinator</strong>
+          <span>“Tomorrow… you’ll start tomorrow.”</span>
+          <div className="hp"><i style={{ width: '35%' }} /></div>
+          <small>❤️ 7 / 20 HP · ⚔️ 13 hits</small>
+        </div>
+        <p className="phone-note">Every promise you keep is a hit. Every rule you break heals it.</p>
+      </div>
+
+      <div className="phone">
+        <div className="phone-label">Trading protection</div>
+        <div className="phone-hero amber">
+          <div style={{ fontSize: 40 }}>❄️</div>
+          <strong>Cool-off</strong>
+          <span>Big loss yesterday. Trading is locked until tomorrow.</span>
+        </div>
+        <div className="mini-card">💸 Money saved by quitting <b>₹4,350</b></div>
+        <div className="mini-card">🐷 Under budget this month <b>₹2,180</b></div>
+      </div>
+    </div>
+  );
+}
 
 const STEPS = [
   ['Pick what you want to change', 'A habit to build, one to quit, a budget — or several.'],
@@ -55,6 +109,8 @@ export default async function Home() {
           </div>
         </section>
 
+        <AppPreview />
+
         <h2 className="section-title" id="areas">What do you want to change?</h2>
         <p className="section-sub">One app for every part of your life. Every goal and every limit is yours to set.</p>
         <div className="features">
@@ -72,7 +128,7 @@ export default async function Home() {
         <div className="features">
           {STEPS.map(([title, text], i) => (
             <div key={title} className="card feature">
-              <div className="ic" style={{ background: 'var(--primary-soft)', fontWeight: 800, fontSize: 18, color: '#c4b5fd' }}>{i + 1}</div>
+              <div className="ic" style={{ background: 'var(--primary-soft)', fontWeight: 800, fontSize: 18, color: 'var(--primary-ink)' }}>{i + 1}</div>
               <h3>{title}</h3>
               <p>{text}</p>
             </div>

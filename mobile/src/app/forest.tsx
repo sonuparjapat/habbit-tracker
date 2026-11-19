@@ -34,7 +34,7 @@ export default function ForestScreen() {
 
   return (
     <Screen edges={['bottom']} onRefresh={refetch} refreshing={isRefetching} contentStyle={{ paddingTop: 12 }}>
-      <Gradient colors={gradients.green} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 28, padding: 24, alignItems: 'center', gap: 6 }}>
+      <Gradient colors={gradients.green} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} sheen glow={colors.green} style={{ borderRadius: 28, padding: 24, alignItems: 'center', gap: 6 }}>
         <Animated.Text style={{ fontSize: 72, transform: [{ scale: grow.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }] }}>
           {data.stage.emoji}
         </Animated.Text>

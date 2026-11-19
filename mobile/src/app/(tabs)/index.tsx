@@ -6,6 +6,7 @@ import { CelebrationModal, LevelBar, type Celebration } from '@/components/game'
 import { Banners } from '@/components/gates';
 import { GuestHome } from '@/components/guest';
 import { ForestPreview } from '@/components/forest';
+import { BossPreview } from '@/components/games';
 import { GuidedTour, parseTourSteps } from '@/components/tour';
 import { AlertCard, Button, Card, EmptyState, ErrorView, Icon, IconButton, Loading, Ring, Row, scoreColor, Screen, SectionTitle, Txt } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
@@ -128,6 +129,7 @@ export default function Today() {
           {game ? (
             <View style={{ marginBottom: 12 }}>
               <LevelBar game={game} onPress={() => router.push('/achievements' as Href)} />
+              <BossPreview />
               <ForestPreview />
             </View>
           ) : null}

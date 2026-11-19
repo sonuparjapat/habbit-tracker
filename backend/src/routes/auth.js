@@ -1,3 +1,23 @@
+/**
+ * Accounts: sign up, sign in, email verification, passwords and the member's own profile.
+ *
+ *   POST   /api/auth/register              create an account (sends a 6-digit email code)
+ *   POST   /api/auth/login                 sign in → { token, user }
+ *   POST   /api/auth/verify-email          confirm the email with the 6-digit code
+ *   POST   /api/auth/resend-verification   send a new code
+ *   POST   /api/auth/forgot-password       email a reset code (same reply whether or not the email exists)
+ *   POST   /api/auth/reset-password        set a new password with the code
+ *   POST   /api/auth/change-password       change password while signed in
+ *   POST   /api/auth/logout-all            sign out on every device (bumps token_version)
+ *   GET    /api/auth/me                    my profile
+ *   PATCH  /api/auth/me                    edit name, timezone, currency, interests…
+ *   POST   /api/auth/accept-terms          accept the latest terms
+ *   GET    /api/auth/me/export             download all my data (JSON)
+ *   DELETE /api/auth/me                    delete my account and all its data
+ *
+ * Rate limits are per account / per email (not per IP), so people sharing a mobile network
+ * don't block each other.
+ */
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';

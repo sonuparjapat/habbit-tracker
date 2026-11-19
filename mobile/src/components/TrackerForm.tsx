@@ -199,7 +199,7 @@ export function TrackerForm({
       ) : draft.type === 'spending' ? (
         <SpendingFields cfg={draft.config as SpendingConfig} setCfg={setCfg} currency={currency} />
       ) : (
-        <HabitFields cfg={draft.config as HabitConfig} setCfg={setCfg} color={draft.color} />
+        <HabitFields cfg={draft.config as HabitConfig} setCfg={setCfg} color={draft.color} currency={currency} />
       )}
 
       <SectionTitle>Category</SectionTitle>
@@ -383,7 +383,7 @@ const KIND_HELP = {
   limit: 'Something you want less of. Log how much, and stay under your limit.',
 };
 
-function HabitFields({ cfg, setCfg, color }: { cfg: HabitConfig; setCfg: (p: AnyConfig) => void; color: string }) {
+function HabitFields({ cfg, setCfg, color, currency }: { cfg: HabitConfig; setCfg: (p: AnyConfig) => void; color: string; currency: string }) {
   const measured = cfg.kind === 'limit' || (cfg.kind === 'build' && cfg.goalType !== 'boolean');
   return (
     <>
@@ -452,6 +452,15 @@ function HabitFields({ cfg, setCfg, color }: { cfg: HabitConfig; setCfg: (p: Any
           <Chip label="Weekdays" selected={cfg.days.join() === '1,2,3,4,5'} onPress={() => setCfg({ days: [1, 2, 3, 4, 5] })} />
           <Chip label="Weekends" selected={cfg.days.join() === '0,6'} onPress={() => setCfg({ days: [0, 6] })} />
         </Row>
+        {cfg.kind !== 'build' ? (
+          <MoneyField
+            label="What does a bad day cost you? (optional)"
+            value={cfg.costPerDay ?? 0}
+            onChange={(costPerDay) => setCfg({ costPerDay })}
+            hint={cfg.costPerDay ? `Every clean day saves ${money(cfg.costPerDay, currency)} — watch it add up in Games.` : 'e.g. a pack of cigarettes. We’ll show how much you save.'}
+            currency={currency}
+          />
+        ) : null}
       </Card>
 
       <WhyField value={cfg.why} onChange={(why) => setCfg({ why })} placeholder="The reason you’ll keep going on hard days." />
