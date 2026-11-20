@@ -282,3 +282,13 @@ tbody tr.clickable:hover { background: var(--surface-2); }
 .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; pointer-events: none; }
 .pager { padding: 4px 2px; }
 .list-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+/* ------------------------------ Confirm dialog ------------------------------ */
+.confirm-wrap { z-index: 80; animation: fade-in 0.15s ease-out; }
+.modal.confirm { width: min(440px, 100%); gap: 12px; text-align: left; animation: pop-in 0.18s ease-out; }
+.confirm-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; background: var(--primary-soft); }
+.modal.confirm.danger .confirm-icon { background: var(--red-soft); }
+.btn-danger-solid { background: var(--red); border-color: var(--red); color: #fff; }
+.btn-danger-solid:hover { filter: brightness(1.08); background: var(--red); }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: none; } }

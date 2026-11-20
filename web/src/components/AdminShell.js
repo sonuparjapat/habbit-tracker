@@ -23,7 +23,7 @@ function ThemeToggle() {
 }
 import { get } from '@/lib/api';
 import { can, PERMISSIONS as P, ROLE_BADGE } from '@/lib/roles';
-import { ToastProvider } from './admin/kit';
+import { ConfirmProvider, ToastProvider } from './admin/kit';
 
 /**
  * Admin navigation. To add a page: create src/app/admin/(panel)/<name>/page.js and add one entry here.
@@ -111,6 +111,7 @@ export function AdminShell({ children }) {
 
   return (
     <ToastProvider>
+      <ConfirmProvider>
       <div className="layout">
         <aside className="sidebar">
           <div className="brand">
@@ -144,6 +145,7 @@ export function AdminShell({ children }) {
           </AdminContext>
         </main>
       </div>
+      </ConfirmProvider>
     </ToastProvider>
   );
 }

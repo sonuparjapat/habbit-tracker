@@ -103,7 +103,7 @@ function Editor({ initial, onClose, onSaved }) {
       success: isNew ? 'Announcement created' : 'Saved',
       after: onSaved,
     });
-  const remove = () => run(() => del(`/admin/announcements/${a.id}`), { confirm: `Delete “${a.title}”?`, success: 'Deleted', after: onSaved });
+  const remove = () => run(() => del(`/admin/announcements/${a.id}`), { confirm: { title: 'Delete this announcement?', message: `“${a.title}” will be removed from the app. This can’t be undone.`, confirmLabel: 'Delete', danger: true }, success: 'Deleted', after: onSaved });
 
   return (
     <Modal

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Pager, SearchBox, useClientList } from '@/components/admin/kit';
+import { Pager, SearchBox, useClientList, useConfirm } from '@/components/admin/kit';
 import { del, get, patch, post } from '@/lib/api';
 
 const CATEGORIES = ['trading', 'fitness', 'mind', 'money', 'productivity', 'quit', 'other'];
@@ -108,6 +108,7 @@ export default function TemplatesPage() {
 }
 
 function TemplateEditor({ initial, onClose, onSaved }) {
+  const confirm = useConfirm();
   const isNew = !initial.id;
   const [t, setT] = useState(initial);
   const [configText, setConfigText] = useState(JSON.stringify(initial.config ?? {}, null, 2));
@@ -138,7 +139,7 @@ function TemplateEditor({ initial, onClose, onSaved }) {
   };
 
   const remove = async () => {
-    if (!window.confirm(`Delete template "${t.name}"? Trackers already created from it are not affected.`)) return;
+    if (!(await confirm({ title: `Delete “${t.name}”?`, message: 'Trackers already created from it are not affected.', confirmLabel: 'Delete', danger: true }))) return;
     try {
       await del(`/admin/templates/${t.id}`);
       onSaved();

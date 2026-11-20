@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useConfirm } from '@/components/admin/kit';
 import { get } from './api';
 
 /**
@@ -35,15 +36,17 @@ export function useResource(path) {
 /**
  * Run a write action with busy/error state and optional confirmation.
  *   const { run, busy, error } = useAction();
- *   run(() => del(`/admin/x/${id}`), { confirm: 'Delete?', success: 'Deleted', after: reload })
+ *   run(() => del(`/admin/x/${id}`), { confirm: { title: 'Delete?', message: '…', confirmLabel: 'Delete', danger: true }, success: 'Deleted', after: reload })
+ *   (confirm can also be a plain string; it opens the admin's confirm dialog, see ConfirmProvider)
  */
 export function useAction(toast) {
+  const ask = useConfirm();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   const run = useCallback(
     async (fn, { confirm, success, after } = {}) => {
-      if (confirm && !window.confirm(confirm)) return undefined;
+      if (confirm && !(await ask(confirm))) return undefined;
       setBusy(true);
       setError(null);
       try {
@@ -59,7 +62,7 @@ export function useAction(toast) {
         setBusy(false);
       }
     },
-    [toast],
+    [toast, ask],
   );
 
   return { run, busy, error, clearError: () => setError(null) };

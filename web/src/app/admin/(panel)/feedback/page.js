@@ -96,7 +96,7 @@ function FeedbackDrawer({ item, onClose, onChanged }) {
         {item.status !== 'new' ? <button className="btn" disabled={busy} onClick={() => update({ status: 'new' }, 'Moved back to New')}>Reopen</button> : null}
         {note !== (item.adminNote ?? '') ? <button className="btn" disabled={busy} onClick={() => update({ adminNote: note || null }, 'Note saved')}>Save note</button> : null}
       </div>
-      <button className="btn btn-danger" disabled={busy} onClick={() => run(() => del(`/admin/feedback/${item.id}`), { confirm: 'Delete this feedback permanently?', success: 'Deleted', after: onChanged })}>
+      <button className="btn btn-danger" disabled={busy} onClick={() => run(() => del(`/admin/feedback/${item.id}`), { confirm: { title: 'Delete this feedback?', message: "Delete this feedback permanently?", confirmLabel: 'Delete', danger: true }, success: 'Deleted', after: onChanged })}>
         Delete
       </button>
     </Drawer>

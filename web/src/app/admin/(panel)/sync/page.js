@@ -113,7 +113,7 @@ export default function SyncPage() {
                     <button className="btn btn-sm" disabled={busy} onClick={() => run(() => post(`/admin/sync/${op.id}/retry`), { after: (res) => { toast(`Result: ${STATUS[res.data.status]?.label ?? res.data.status}`); reload(); } })}>
                       Retry
                     </button>
-                    <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => run(() => post(`/admin/sync/${op.id}/discard`), { confirm: 'Discard this change? It will not be applied.', success: 'Discarded', after: reload })}>
+                    <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => run(() => post(`/admin/sync/${op.id}/discard`), { confirm: { title: 'Discard this change?', message: 'It will not be applied. The member’s data stays as it is on the server.', confirmLabel: 'Discard', danger: true }, success: 'Discarded', after: reload })}>
                       Discard
                     </button>
                   </div>

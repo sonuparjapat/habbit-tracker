@@ -1,5 +1,7 @@
 'use client';
 
+import { useConfirm } from '@/components/admin/kit';
+
 import { useCallback, useEffect, useState } from 'react';
 import { useAdmin } from '@/components/AdminShell';
 import { del, get, patch, post } from '@/lib/api';
@@ -138,6 +140,7 @@ export default function UsersPage() {
 }
 
 function UserDrawer({ id, me, onClose, onChanged }) {
+  const confirm = useConfirm();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -148,7 +151,7 @@ function UserDrawer({ id, me, onClose, onChanged }) {
   useEffect(load, [load]);
 
   const act = async (fn, confirmText) => {
-    if (confirmText && !window.confirm(confirmText)) return;
+    if (confirmText && !(await confirm(confirmText))) return;
     setBusy(true);
     setError(null);
     try {
@@ -245,6 +248,7 @@ function UserDrawer({ id, me, onClose, onChanged }) {
 }
 
 function UserActions({ me, u, id, busy, act, self }) {
+  const confirm = useConfirm();
   const manage = can(me, PERMISSIONS.USERS_MANAGE) && canActOn(me, u);
   const verify = can(me, PERMISSIONS.USERS_MANAGE) && canActOn(me, u, { allowSelf: true }) && !u.emailVerified;
   const changeRole = can(me, PERMISSIONS.ADMINS_MANAGE) && canActOn(me, u);
@@ -267,7 +271,7 @@ function UserActions({ me, u, id, busy, act, self }) {
             className="btn"
             disabled={busy}
             title="Signs them out and emails a code — they unlock it themselves"
-            onClick={() => act(() => post(`/admin/users/${id}/lock`), `Lock ${u.email} for safety?\n\nThey are signed out everywhere and emailed a code to unlock it themselves.`)}>
+            onClick={() => act(() => post(`/admin/users/${id}/lock`), { icon: '🔒', title: `Lock ${u.email}?`, message: 'They are signed out everywhere and emailed a code to unlock it themselves.', confirmLabel: 'Lock account' })}>
             🔒 Lock (owner can unlock)
           </button>
         ) : null}
@@ -278,26 +282,33 @@ function UserActions({ me, u, id, busy, act, self }) {
           <button
             className="btn"
             disabled={busy}
-            onClick={() => {
-              const reason = window.prompt(`Suspend ${u.email}?\n\nOnly an admin can lift this. They are signed out and emailed.\nReason (shown to them, optional):`);
+            onClick={async () => {
+              const reason = await confirm({
+                icon: '⛔',
+                title: `Suspend ${u.email}?`,
+                message: 'Only an admin can lift this. They are signed out everywhere and emailed.',
+                input: { label: 'Reason (shown to them, optional)', placeholder: 'e.g. Spam in feedback', multiline: true },
+                confirmLabel: 'Suspend',
+                danger: true,
+              });
               if (reason === null) return;
-              act(() => patch(`/admin/users/${id}`, { status: 'suspended', reason: reason.trim() || undefined }));
+              act(() => patch(`/admin/users/${id}`, { status: 'suspended', reason: reason || undefined }));
             }}>
             ⛔ Suspend
           </button>
         ) : null}
         {manage && u.status !== 'active' ? (
-          <button className="btn" disabled={busy} onClick={() => act(() => patch(`/admin/users/${id}`, { status: 'active' }), `Reactivate ${u.email}? They will be emailed.`)}>✅ Reactivate</button>
+          <button className="btn" disabled={busy} onClick={() => act(() => patch(`/admin/users/${id}`, { status: 'active' }), { icon: '✅', title: `Reactivate ${u.email}?`, message: 'They can sign in again straight away and are emailed.', confirmLabel: 'Reactivate' })}>✅ Reactivate</button>
         ) : null}
         {verify ? <button className="btn" disabled={busy} onClick={() => act(() => post(`/admin/users/${id}/verify-email`))}>Mark email verified</button> : null}
         {manage ? (
-          <button className="btn" disabled={busy} onClick={() => act(() => post(`/admin/users/${id}/logout`), 'Sign this account out of every device?')}>Sign out everywhere</button>
+          <button className="btn" disabled={busy} onClick={() => act(() => post(`/admin/users/${id}/logout`), { title: 'Sign out everywhere?', message: 'This account is signed out on every device.', confirmLabel: 'Sign out' })}>Sign out everywhere</button>
         ) : null}
         {changeRole && u.role === ROLES.ADMIN ? (
-          <button className="btn" disabled={busy} onClick={() => act(() => patch(`/admin/users/${id}`, { role: ROLES.USER }), 'Remove admin access? They become a normal user.')}>Make normal user</button>
+          <button className="btn" disabled={busy} onClick={() => act(() => patch(`/admin/users/${id}`, { role: ROLES.USER }), { title: 'Remove admin access?', message: 'They become a normal member immediately.', confirmLabel: 'Remove access', danger: true })}>Make normal user</button>
         ) : null}
         {changeRole && u.role === ROLES.USER ? (
-          <button className="btn" disabled={busy} onClick={() => act(() => patch(`/admin/users/${id}`, { role: ROLES.ADMIN }), `Make ${u.email} an admin? They will get access to the admin panel.`)}>Make admin</button>
+          <button className="btn" disabled={busy} onClick={() => act(() => patch(`/admin/users/${id}`, { role: ROLES.ADMIN }), { icon: '🛡', title: `Make ${u.email} an admin?`, message: 'They get access to the admin panel (role 2).', confirmLabel: 'Make admin' })}>Make admin</button>
         ) : null}
       </div>
       {remove ? (

@@ -84,7 +84,7 @@ export default function SettingsPage() {
 
   const reset = (key) =>
     run(() => del(`/admin/settings/${key}`), {
-      confirm: `Reset “${defs[key].label}” to its default?`,
+      confirm: { icon: '↺', title: 'Reset to default?', message: `“${defs[key].label}” goes back to its built-in value.`, confirmLabel: 'Reset' },
       success: 'Reset to default',
       after: async () => {
         setDraft(({ [key]: _, ...rest }) => rest);

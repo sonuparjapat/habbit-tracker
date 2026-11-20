@@ -356,3 +356,87 @@ export function ToastProvider({ children }) {
 
 /** const toast = useToast(); toast('Saved') / toast('Failed', 'error') */
 export const useToast = () => use(ToastContext);
+
+/* ------------------------------ Confirm dialog ------------------------------ */
+
+const ConfirmContext = createContext(null);
+
+/**
+ * A proper dialog instead of the browser's confirm() / prompt():
+ *
+ *   const confirm = useConfirm();
+ *   if (!(await confirm({ title: 'Delete template?', message: '…', confirmLabel: 'Delete', danger: true }))) return;
+ *
+ *   // With a text field (returns the text, or null if cancelled):
+ *   const reason = await confirm({ title: 'Suspend?', input: { label: 'Reason', placeholder: '…' } });
+ *
+ * A plain string works too: await confirm('Delete this?')
+ */
+export function ConfirmProvider({ children }) {
+  const [dialog, setDialog] = useState(null);
+  const [text, setText] = useState('');
+
+  const ask = useCallback(
+    (options) =>
+      new Promise((resolve) => {
+        const o = typeof options === 'string' ? { message: options } : options;
+        setText(o.input?.defaultValue ?? '');
+        setDialog({ ...o, resolve });
+      }),
+    [],
+  );
+
+  const close = (result) => {
+    dialog?.resolve(result);
+    setDialog(null);
+  };
+  const confirmValue = () => (dialog?.input ? text.trim() : true);
+  const blocked = dialog?.input?.required && !text.trim();
+
+  return (
+    <ConfirmContext value={ask}>
+      {children}
+      {dialog ? (
+        <div className="modal-wrap confirm-wrap" onClick={() => close(dialog.input ? null : false)}>
+          <div
+            className={`modal confirm ${dialog.danger ? 'danger' : ''}`}
+            role="alertdialog"
+            aria-modal="true"
+            aria-label={dialog.title ?? 'Please confirm'}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') close(dialog.input ? null : false);
+              if (e.key === 'Enter' && !e.shiftKey && !blocked && (dialog.input ? !dialog.input.multiline : true)) close(confirmValue());
+            }}>
+            <div className="confirm-icon" aria-hidden>{dialog.icon ?? (dialog.danger ? '⚠️' : '❓')}</div>
+            <h2>{dialog.title ?? 'Are you sure?'}</h2>
+            {dialog.message ? <p className="muted" style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{dialog.message}</p> : null}
+            {dialog.input ? (
+              <Field label={dialog.input.label} hint={dialog.input.hint}>
+                {dialog.input.multiline ? (
+                  <textarea rows={3} autoFocus value={text} placeholder={dialog.input.placeholder} maxLength={dialog.input.maxLength ?? 300} onChange={(e) => setText(e.target.value)} style={{ fontFamily: 'inherit', fontSize: 14 }} />
+                ) : (
+                  <input className="input" autoFocus value={text} placeholder={dialog.input.placeholder} maxLength={dialog.input.maxLength ?? 300} onChange={(e) => setText(e.target.value)} />
+                )}
+              </Field>
+            ) : null}
+            <div className="row" style={{ justifyContent: 'flex-end', marginTop: 4 }}>
+              <button className="btn" onClick={() => close(dialog.input ? null : false)} autoFocus={!dialog.input}>
+                {dialog.cancelLabel ?? 'Cancel'}
+              </button>
+              <button className={`btn ${dialog.danger ? 'btn-danger-solid' : 'btn-primary'}`} disabled={blocked} onClick={() => close(confirmValue())}>
+                {dialog.confirmLabel ?? 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </ConfirmContext>
+  );
+}
+
+/** Ask the admin to confirm (see ConfirmProvider). Falls back to the browser's confirm() outside the admin shell. */
+export function useConfirm() {
+  const ask = use(ConfirmContext);
+  return ask ?? ((o) => Promise.resolve(window.confirm(typeof o === 'string' ? o : [o.title, o.message].filter(Boolean).join('\n\n'))));
+}

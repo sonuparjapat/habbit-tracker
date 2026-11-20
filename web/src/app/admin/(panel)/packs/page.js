@@ -33,7 +33,9 @@ export default function PacksPage() {
   };
   const remove = (p) =>
     run(() => del(`/admin/starter-packs/${p.id}`), {
-      confirm: p.builtIn ? `“${p.name}” comes with the app, so it will be hidden (not deleted). Continue?` : `Delete “${p.name}”?`,
+      confirm: p.builtIn
+        ? { title: `Hide “${p.name}”?`, message: 'This pack comes with the app, so it is hidden rather than deleted. You can show it again any time.', confirmLabel: 'Hide' }
+        : { title: `Delete “${p.name}”?`, message: 'Members who already used it keep their trackers.', confirmLabel: 'Delete', danger: true },
       success: p.builtIn ? 'Pack hidden' : 'Pack deleted',
       after: () => {
         setEditing(null);

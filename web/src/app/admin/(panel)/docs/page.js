@@ -15,6 +15,7 @@ const SECTIONS = [
     body: [
       'The menu on the left only shows what your role can use. Super admins (role 1) see everything; admins (role 2) manage members, templates, content and feedback.',
       'Every change you make is recorded in Audit log — who did what, and when.',
+      'Anything that can’t be undone (delete, send, suspend, lock, discard…) asks first in a dialog that says exactly what will happen. Press Esc or Cancel to back out.',
       'Super admins are only ever created on the server: npm run create-admin -- you@example.com "password".',
       'The ☀️ / 🌙 button next to the logo switches the admin panel between light and dark (saved in this browser).',
       'Every list (users, feedback, audit log, announcements, templates, starter packs, notifications, offline sync, security) has a search box and pages. Searching or changing a filter jumps back to page 1.',

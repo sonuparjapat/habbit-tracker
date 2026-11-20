@@ -51,7 +51,7 @@ export default function SecurityPage() {
         reload();
       },
     });
-  const unblock = (b) => run(() => del(`/admin/security/ips/${b.id}`), { confirm: `Unblock ${b.target}?`, success: `Unblocked ${b.target}`, after: reload });
+  const unblock = (b) => run(() => del(`/admin/security/ips/${b.id}`), { confirm: { icon: '🔓', title: `Unblock ${b.target}?`, message: 'People on this network can use the app again straight away.', confirmLabel: 'Unblock' }, success: `Unblocked ${b.target}`, after: reload });
   const unlock = (m) => run(() => post(`/admin/users/${m.id}/unlock`), { success: `Unlocked ${m.email}`, after: reload });
 
   const failures24h = data.failing.reduce((s, f) => s + f.failures, 0);

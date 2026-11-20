@@ -84,7 +84,12 @@ export default function NotificationsPage() {
   const sendTest = () => run(() => post('/admin/push/send', { ...payload, test: true }), { success: 'Sent to your phone' });
   const sendAll = () =>
     run(() => post('/admin/push/send', payload), {
-      confirm: `Send “${payload.title}” to ${count ?? 'all matching'} people now? This can’t be undone.`,
+      confirm: {
+        icon: '🔔',
+        title: `Send to ${count ?? 'all matching'} ${count === 1 ? 'person' : 'people'}?`,
+        message: `“${payload.title}”\n${payload.body}\n\nIt goes out right away and can’t be taken back.`,
+        confirmLabel: 'Send now',
+      },
       after: (res) => {
         const r = res.data.result;
         toast(`Sent to ${r.delivered} of ${r.recipients} phones${r.failed ? ` · ${r.failed} failed` : ''}`, r.failed ? 'error' : 'success');
