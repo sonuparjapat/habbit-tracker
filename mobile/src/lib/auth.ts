@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocales } from 'expo-localization';
 import { create } from 'zustand';
 import { api, get, patch, post, setAuthToken, setUnauthorizedHandler } from './api';
@@ -8,6 +9,21 @@ import { storage } from './storage';
 import type { CategoryKey, User } from './types';
 
 const TOKEN_KEY = 'auth_token';
+/** The signed-in member's profile, kept on the phone so the app can open instantly (even while the server wakes up). */
+const USER_KEY = 'auth_user_v1';
+
+async function loadSavedUser(): Promise<User | null> {
+  try {
+    const raw = await AsyncStorage.getItem(USER_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Resolve with the value, or with undefined after `ms` (so a sleeping server can't hold the app). */
+const within = <T>(promise: Promise<T>, ms: number) =>
+  Promise.race([promise, new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), ms))]);
 
 type Session = { token: string; user: User };
 
@@ -81,24 +97,42 @@ export const useAuth = create<AuthState>((set, getState) => {
     token: null,
     user: null,
 
+    /**
+     * App start. Never waits for the server: the saved session and profile open the app at once,
+     * and the server is asked in the background whether the session is still valid.
+     * (Only the very first start after installing this version, with no saved profile, waits — at most 4 s.)
+     */
     hydrate: async () => {
-      const token = await storage.get(TOKEN_KEY);
-      if (token) {
-        setAuthToken(token);
-        try {
-          const { user } = await get<{ user: User }>('/auth/me');
-          set({ token, user });
-        } catch (err: any) {
-          // Keep the session if we're just offline; drop it if the token is no longer valid.
-          if (err?.status === 401 || err?.status === 403) {
-            setAuthToken(null);
-            await storage.remove(TOKEN_KEY);
-          } else {
-            set({ token });
-          }
-        }
+      const [token, savedUser] = await Promise.all([storage.get(TOKEN_KEY), loadSavedUser()]);
+      if (!token) {
+        set({ ready: true });
+        return;
       }
-      set({ ready: true });
+      setAuthToken(token);
+      const check = get<{ user: User }>('/auth/me')
+        .then(({ user }) => {
+          if (getState().token === token) set({ user });
+          return user;
+        })
+        .catch(async (err: any) => {
+          // The session ended on the server (signed out everywhere, suspended, locked): sign out here too.
+          // Anything else (offline, server asleep, slow) keeps the member signed in with the saved data.
+          if (err?.status === 401 || err?.status === 403 || err?.status === 423) {
+            if (getState().token === token) await getState().logout();
+          }
+          return undefined;
+        });
+
+      if (savedUser) {
+        set({ token, user: savedUser, ready: true });
+        return; // the check above finishes in the background
+      }
+      await within(check, 4000);
+      if (getState().token === null && getState().ready === false) {
+        set({ ready: true }); // the check signed us out
+        return;
+      }
+      set({ token: getState().token ?? token, ready: true });
     },
 
     login: async (email, password) => signIn(await post<Session>('/auth/login', { email, password })),
@@ -149,6 +183,7 @@ export const useAuth = create<AuthState>((set, getState) => {
     logout: async () => {
       setAuthToken(null);
       await storage.remove(TOKEN_KEY);
+      await AsyncStorage.removeItem(USER_KEY).catch(() => {});
       await clearCache();
       set({ token: null, user: null });
     },
@@ -169,4 +204,10 @@ export const useAuth = create<AuthState>((set, getState) => {
       await getState().logout();
     },
   };
+});
+
+// Whenever the profile changes, save it on the phone (used to open the app instantly next time)
+useAuth.subscribe((state, prev) => {
+  if (state.user === prev.user) return;
+  if (state.user) AsyncStorage.setItem(USER_KEY, JSON.stringify(state.user)).catch(() => {});
 });
