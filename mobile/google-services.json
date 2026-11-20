@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "30699206618",
+    "project_id": "tracker-app-7a6e9",
+    "storage_bucket": "tracker-app-7a6e9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:30699206618:android:59fee44dfb57ef016df2e3",
+        "android_client_info": {
+          "package_name": "com.anchor.discipline"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAr1pL4Vav-nBqmEw4TXkybYVPuC8Cce1o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

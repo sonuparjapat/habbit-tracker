@@ -45,3 +45,7 @@ example
 
 # Google Play upload key for `eas submit` — never commit
 play-service-account.json
+
+# Firebase private key (upload it to Expo, never commit it). google-services.json itself is fine to commit.
+*firebase-adminsdk*.json
+firebase-service-account*.json
