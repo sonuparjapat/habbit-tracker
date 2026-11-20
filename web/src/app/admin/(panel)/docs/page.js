@@ -17,6 +17,7 @@ const SECTIONS = [
       'Every change you make is recorded in Audit log — who did what, and when.',
       'Super admins are only ever created on the server: npm run create-admin -- you@example.com "password".',
       'The ☀️ / 🌙 button next to the logo switches the admin panel between light and dark (saved in this browser).',
+      'Every list (users, feedback, audit log, announcements, templates, starter packs, notifications, offline sync, security) has a search box and pages. Searching or changing a filter jumps back to page 1.',
     ],
   },
   {
@@ -137,6 +138,7 @@ const SECTIONS = [
     body: [
       'System page: API and database health, database migrations, email status (with a test email button) and the evening check-in.',
       'If email shows "not working", set BREVO_API_KEY (and MAIL_FROM, a sender verified in Brevo) in Render → Environment and redeploy.',
+      'Emails not arriving? System → Email shows how many were sent / failed and the exact reason for the last failure, with how to fix it. The most common cause: Brevo blocks unknown server IPs — in Brevo go to Settings → Security → Authorised IPs and turn the restriction off. Also check the spam folder.',
       'Database changes run by themselves when the backend starts. Every push to GitHub runs the automatic checks (tests, app typecheck, website build).',
       'Turn on daily database backups in your database host. Free hosting sleeps after 15 minutes idle — an uptime monitor calling /health every 10 minutes keeps it awake.',
     ],
