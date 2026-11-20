@@ -86,7 +86,7 @@ export default function TrackerDetail() {
   const today = useTrackerToday<TradingToday | HabitToday | SpendingToday>(id);
   const currency = useAuth((s) => s.user?.currency ?? 'USD');
 
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="detail" />;
   if (error || !tracker) return <Screen><ErrorView error={error} onRetry={refetch} /></Screen>;
 
   return (

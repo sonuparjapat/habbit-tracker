@@ -20,7 +20,7 @@ export default function AddExpense() {
   const [day, setDay] = useState<'today' | 'yesterday'>('today');
   const [result, setResult] = useState<RuleBreak[] | null>(null);
 
-  if (!tracker || tracker.type !== 'spending') return <Loading />;
+  if (!tracker || tracker.type !== 'spending') return <Loading variant="form" />;
   const cfg = tracker.config;
   const value = Number(amount) || 0;
   const s = today?.status;

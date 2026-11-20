@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge, Drawer, Empty, ErrorBox, Field, PageHeader, Pager, SearchBox, Spinner, Tabs, useListQuery, useToast } from '@/components/admin/kit';
+import { Badge, Drawer, Empty, ErrorBox, Field, PageHeader, Pager, SearchBox, TableSkeleton, Tabs, useListQuery, useToast } from '@/components/admin/kit';
 import { del, patch } from '@/lib/api';
 import { fmtDateTime, timeAgo } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
@@ -37,7 +37,7 @@ export default function FeedbackPage() {
         ]}
       />
       <ErrorBox error={error} onRetry={reload} />
-      {loading && !data ? <Spinner /> : null}
+      {loading && !data ? <TableSkeleton rows={4} /> : null}
       {data && !data.feedback.length ? <div className="card"><Empty>{list.q ? `Nothing matches “${list.q}”.` : status === 'new' ? 'Inbox zero 🎉 — nothing new.' : 'Nothing here.'}</Empty></div> : null}
       <div className="stack" style={{ gap: 10 }}>
         {data?.feedback.map((f) => (

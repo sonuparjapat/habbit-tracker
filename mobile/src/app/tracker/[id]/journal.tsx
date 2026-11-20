@@ -17,7 +17,7 @@ export default function Journal() {
   const [day, setDay] = useState<'today' | 'yesterday'>('today');
   const date = day === 'today' ? today : addDays(today, -1);
 
-  if (isLoading || !tracker) return <Loading />;
+  if (isLoading || !tracker) return <Loading variant="form" />;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

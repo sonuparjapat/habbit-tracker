@@ -23,7 +23,8 @@ function ThemeToggle() {
 }
 import { get } from '@/lib/api';
 import { can, PERMISSIONS as P, ROLE_BADGE } from '@/lib/roles';
-import { ConfirmProvider, ToastProvider } from './admin/kit';
+import { useBusy } from '@/lib/useApi';
+import { ConfirmProvider, ToastProvider, TopProgress } from './admin/kit';
 
 /**
  * Admin navigation. To add a page: create src/app/admin/(panel)/<name>/page.js and add one entry here.
@@ -53,6 +54,7 @@ const NAV = [
 const isActive = (href, pathname) => (href === '/admin' ? pathname === '/admin' : pathname.startsWith(href));
 
 export function AdminShell({ children }) {
+  const busy = useBusy();
   const pathname = usePathname();
   const router = useRouter();
   const [me, setMe] = useState(null);
@@ -98,7 +100,13 @@ export function AdminShell({ children }) {
         </div>
       </div>
     );
-  if (!me) return <div className="spinner" />;
+  if (!me)
+    return (
+      <div className="boot">
+        <div className="boot-mark">⚓</div>
+        <div className="muted small">Opening the admin panel…</div>
+      </div>
+    );
 
   const visible = NAV.filter((n, i) => {
     if (!n.group) return can(me, n.permission);
@@ -112,6 +120,7 @@ export function AdminShell({ children }) {
   return (
     <ToastProvider>
       <ConfirmProvider>
+        <TopProgress busy={busy} />
       <div className="layout">
         <aside className="sidebar">
           <div className="brand">

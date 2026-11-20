@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Pager, SearchBox, useClientList, useConfirm } from '@/components/admin/kit';
+import { Pager, SearchBox, TableSkeleton, useClientList, useConfirm } from '@/components/admin/kit';
 import { del, get, patch, post } from '@/lib/api';
 
 const CATEGORIES = ['trading', 'fitness', 'mind', 'money', 'productivity', 'quit', 'other'];
@@ -48,7 +48,7 @@ export default function TemplatesPage() {
         </div>
       </div>
       {error ? <div className="error">{error}</div> : null}
-      {!list ? <div className="spinner" /> : null}
+      {!list ? <TableSkeleton /> : null}
       {list ? (
         <div className="table-wrap">
           <table>

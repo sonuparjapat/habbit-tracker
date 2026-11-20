@@ -8,6 +8,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CrashScreen } from '@/components/CrashScreen';
+import { ActivityBar } from '@/components/activityBar';
 import { AppGates } from '@/components/gates';
 import { useAuth } from '@/lib/auth';
 import { useAppConfig } from '@/lib/config';
@@ -155,6 +156,7 @@ export default function RootLayout() {
           {(mode, lang) => (
             <ThemeProvider value={navTheme(mode)} key={`${mode}-${lang}`}>
               <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+              <ActivityBar />
               <OfflineSync />
               {token ? <ReminderSync /> : null}
               <AppGates>

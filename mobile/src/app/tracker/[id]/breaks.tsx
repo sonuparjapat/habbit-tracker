@@ -10,7 +10,7 @@ export default function RuleBreaks() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading } = useRuleBreaks(id, 'all');
   const currency = useAuth((s) => s.user?.currency ?? 'USD');
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="list" />;
 
   // Group by day
   const days = new Map<string, NonNullable<typeof data>>();

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge, DataTable, ErrorBox, Field, PageHeader, Section, Spinner, StatCard, useToast } from '@/components/admin/kit';
+import { Badge, DataTable, ErrorBox, Field, PageHeader, Section, PageSkeleton, StatCard, useToast } from '@/components/admin/kit';
 import { useAdmin } from '@/components/AdminShell';
 import { post } from '@/lib/api';
 import { fmtDateTime, timeAgo } from '@/lib/format';
@@ -17,7 +17,7 @@ export default function SystemPage() {
   const [to, setTo] = useState(me.email);
   const { run, busy } = useAction(toast);
 
-  if (loading && !data) return <Spinner />;
+  if (loading && !data) return <PageSkeleton />;
   if (error) return <ErrorBox error={error} onRetry={reload} />;
   const { api: a, database: db, migrations: m, email, nudges } = data;
   const last = nudges?.lastRun;

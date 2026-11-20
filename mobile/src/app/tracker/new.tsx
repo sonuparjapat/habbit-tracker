@@ -1,9 +1,9 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { TrackerForm, type TrackerDraft } from '@/components/TrackerForm';
 import { StartWithPack } from '@/components/quickActions';
-import { Card, ErrorView, Icon, Row, Screen, SectionTitle, TrackerIcon, Txt } from '@/components/ui';
+import { Card, ErrorView, Icon, Row, Screen, SectionTitle, Skeleton, TrackerIcon, Txt } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { useAppConfig } from '@/lib/config';
 import { CATEGORIES, categoryOf } from '@/lib/catalog';
@@ -81,7 +81,11 @@ export default function NewTracker() {
         </Pressable>
         <Txt variant="caption">Start from a template — you can change every limit on the next screen.</Txt>
 
-        {templates.isLoading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} /> : null}
+        {templates.isLoading ? (
+          <View style={{ gap: 12, marginTop: 20 }}>
+            {[0, 1, 2, 3].map((i) => <Skeleton key={i} height={74} radius={22} />)}
+          </View>
+        ) : null}
         {templates.isError ? (
           <View style={{ marginTop: 20 }}>
             <ErrorView error={templates.error} onRetry={() => templates.refetch()} />

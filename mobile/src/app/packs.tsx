@@ -16,7 +16,7 @@ export default function Packs() {
   const [busySlug, setBusySlug] = useState<string | null>(null);
   const [message, setMessage] = useState<{ slug: string; text: string; ok: boolean } | null>(null);
 
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="list" />;
   if (error) return <Screen edges={['bottom']}><ErrorView error={error} onRetry={refetch} /></Screen>;
   if (!data?.length) return <Screen edges={['bottom']}><EmptyState icon="package-variant" title="No packs right now" message="Create your own trackers instead." /></Screen>;
 

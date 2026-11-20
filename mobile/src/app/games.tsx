@@ -26,7 +26,7 @@ function Unlock({ emoji, title, text, onPress }: { emoji: string; title: string;
 
 export default function GamesScreen() {
   const { data, isLoading, error, refetch, isRefetching } = useGames();
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="cards" />;
   if (error) return <Screen edges={['bottom']}><ErrorView error={error} onRetry={refetch} /></Screen>;
   if (!data) return <Screen edges={['bottom']}><EmptyState icon="gamepad-variant-outline" title="The arcade is closed" message="Games are switched off right now." /></Screen>;
 

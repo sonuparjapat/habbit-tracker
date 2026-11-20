@@ -12,7 +12,7 @@ export default function Invite() {
   const { settings } = useAppConfig();
   const [copied, setCopied] = useState(false);
 
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="cards" />;
   if (error || !data) return <Screen edges={['bottom']}><ErrorView error={error} onRetry={refetch} /></Screen>;
 
   const link = settings.play_store_url || settings.website_url;

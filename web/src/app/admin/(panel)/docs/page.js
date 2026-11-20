@@ -18,6 +18,7 @@ const SECTIONS = [
       'Anything that can’t be undone (delete, send, suspend, lock, discard…) asks first in a dialog that says exactly what will happen. Press Esc or Cancel to back out.',
       'Super admins are only ever created on the server: npm run create-admin -- you@example.com "password".',
       'The ☀️ / 🌙 button next to the logo switches the admin panel between light and dark (saved in this browser).',
+      'While the panel waits for the server you see shimmering placeholders and a thin glowing bar at the very top. If they stay for a while the free server is probably waking up — give it up to a minute. Members in the app see the same: placeholders, then a "Waking up the server — your data is safe" note, and their saved data stays on screen meanwhile.',
       'Every list (users, feedback, audit log, announcements, templates, starter packs, notifications, offline sync, security) has a search box and pages. Searching or changing a filter jumps back to page 1.',
     ],
   },

@@ -28,7 +28,7 @@ export default function QuickLog() {
   const [day, setDay] = useState<'today' | 'yesterday'>('today');
   const [result, setResult] = useState<{ breaks: RuleBreak[]; status: DayStatus; pnl: number } | null>(null);
 
-  if (!tracker || tracker.type !== 'trading') return <Loading />;
+  if (!tracker || tracker.type !== 'trading') return <Loading variant="form" />;
   const value = Number(amount) || 0;
   const pnl = side === 'loss' ? -Math.abs(value) : Math.abs(value);
 

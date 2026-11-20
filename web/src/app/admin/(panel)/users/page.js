@@ -1,6 +1,6 @@
 'use client';
 
-import { useConfirm } from '@/components/admin/kit';
+import { TableSkeleton, useConfirm } from '@/components/admin/kit';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useAdmin } from '@/components/AdminShell';
@@ -84,7 +84,7 @@ export default function UsersPage() {
       </div>
 
       {error ? <div className="error">{error}</div> : null}
-      {!data && !error ? <div className="spinner" /> : null}
+      {!data && !error ? <TableSkeleton /> : null}
 
       {data ? (
         <div className="table-wrap">
@@ -177,7 +177,7 @@ function UserDrawer({ id, me, onClose, onChanged }) {
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕ Close</button>
         </div>
         {error ? <div className="error">{error}</div> : null}
-        {!data ? <div className="spinner" /> : null}
+        {!data ? <TableSkeleton rows={4} /> : null}
         {u ? (
           <>
             <div className="card stack" style={{ gap: 8 }}>

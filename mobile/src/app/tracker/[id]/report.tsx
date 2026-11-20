@@ -9,7 +9,7 @@ export default function TrackerReport() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: tracker } = useTracker(id);
   const currency = useAuth((s) => s.user?.currency ?? 'USD');
-  if (!tracker) return <Loading />;
+  if (!tracker) return <Loading variant="detail" />;
   return (
     <Screen edges={['bottom']}>
       <Stack.Screen options={{ title: `${t(tracker.name)} · ${t('Report')}` }} />

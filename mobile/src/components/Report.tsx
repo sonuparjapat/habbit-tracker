@@ -35,7 +35,7 @@ export function Report({ tracker, currency }: { tracker: Tracker; currency: stri
 
 function TradingReport({ trackerId, period, currency }: { trackerId: string; period: Period; currency: string }) {
   const { data, isLoading, error, refetch } = useStats<TradingStats>(trackerId, period);
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="detail" />;
   if (error || !data) return <ErrorView error={error} onRetry={refetch} />;
   const s = data.summary;
   const d = data.discipline;
@@ -187,7 +187,7 @@ function TradingReport({ trackerId, period, currency }: { trackerId: string; per
 
 function SpendingReport({ tracker, period, currency }: { tracker: SpendingTracker; period: Period; currency: string }) {
   const { data, isLoading, error, refetch } = useStats<SpendingStats>(tracker.id, period);
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="detail" />;
   if (error || !data) return <ErrorView error={error} onRetry={refetch} />;
   const s = data.summary;
   const cfg = tracker.config;
@@ -278,7 +278,7 @@ function SpendingReport({ tracker, period, currency }: { tracker: SpendingTracke
 
 function HabitReport({ tracker, period }: { tracker: Tracker; period: Period }) {
   const { data, isLoading, error, refetch } = useStats<HabitStats>(tracker.id, period);
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="detail" />;
   if (error || !data) return <ErrorView error={error} onRetry={refetch} />;
   const series = new Map(data.series.map((x) => [x.date, x]));
   const rate = data.completionRate;

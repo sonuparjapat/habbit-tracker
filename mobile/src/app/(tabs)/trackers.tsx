@@ -49,7 +49,7 @@ export default function Trackers() {
         </View>
       </Screen>
     );
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="list" />;
 
   const groups = CATEGORIES.map((c) => ({ c, list: (data ?? []).filter((t) => t.category === c.key) })).filter((g) => g.list.length);
 

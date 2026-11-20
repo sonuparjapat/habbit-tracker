@@ -26,7 +26,7 @@ export default function ForestScreen() {
     if (ready) Animated.spring(grow, { toValue: 1, friction: 7, tension: 60, useNativeDriver: true }).start();
   }, [ready, grow]);
 
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="cards" />;
   if (error) return <Screen edges={['bottom']}><ErrorView error={error} onRetry={refetch} /></Screen>;
   if (!data) return <Screen edges={['bottom']}><EmptyState icon="tree-outline" title="The forest is resting" message="Games are switched off right now." /></Screen>;
 

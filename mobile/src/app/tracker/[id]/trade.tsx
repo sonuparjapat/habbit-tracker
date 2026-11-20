@@ -27,7 +27,7 @@ export default function LogTrade() {
   // First screen depends on whether the day is already locked
   const step: Step | null = chosenStep ?? (status ? (status.locked ? 'locked' : 'checklist') : null);
 
-  if (isLoading || !tracker || !status || !step) return <Loading />;
+  if (isLoading || !tracker || !status || !step) return <Loading variant="form" />;
   if (tracker.type !== 'trading') return null;
 
   return (

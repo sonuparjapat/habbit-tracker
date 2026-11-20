@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge, DataTable, ErrorBox, Field, PageHeader, Pager, SearchBox, Section, Spinner, StatCard, useClientList, useListQuery, useToast } from '@/components/admin/kit';
+import { Badge, DataTable, ErrorBox, Field, PageHeader, Pager, SearchBox, Section, PageSkeleton, StatCard, useClientList, useListQuery, useToast } from '@/components/admin/kit';
 import { del, post } from '@/lib/api';
 import { fmtDateTime, timeAgo } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
@@ -39,7 +39,7 @@ export default function SecurityPage() {
   const blocked = useClientList(data?.blocked, (b) => `${b.target} ${b.reason ?? ''} ${b.createdBy ?? ''}`, 10);
   const locked = useClientList(data?.locked, (m) => `${m.email} ${m.name}`, 10);
 
-  if (loading && !data) return <Spinner />;
+  if (loading && !data) return <PageSkeleton />;
   if (error) return <ErrorBox error={error} onRetry={reload} />;
 
   const block = (ip, why = reason, h = hours) =>

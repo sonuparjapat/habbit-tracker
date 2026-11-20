@@ -35,7 +35,45 @@ export function Section({ title, action, children }) {
 
 /* ------------------------------ Status / data ------------------------------ */
 
-export const Spinner = () => <div className="spinner" />;
+/** A shimmering placeholder block (sections and charts that are still loading). */
+export const Spinner = ({ height = 120 }) => <div className="skeleton" style={{ height }} aria-label="Loading" />;
+
+/** A whole page that is still loading: header, stat cards and rows that "fill in" when data arrives. */
+export function PageSkeleton() {
+  return (
+    <div className="stack" style={{ gap: 20 }} aria-label="Loading" aria-busy="true">
+      <div className="stack" style={{ gap: 10 }}>
+        <div className="skeleton" style={{ height: 28, width: 220 }} />
+        <div className="skeleton" style={{ height: 14, width: 360, maxWidth: '80%' }} />
+      </div>
+      <div className="grid grid-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="skeleton" style={{ height: 104 }} />
+        ))}
+      </div>
+      <TableSkeleton />
+    </div>
+  );
+}
+
+/** Table rows that shimmer while a list loads. */
+export function TableSkeleton({ rows = 6 }) {
+  return (
+    <div className="table-wrap" style={{ padding: 16 }} aria-busy="true">
+      <div className="stack" style={{ gap: 14 }}>
+        {Array.from({ length: rows }, (_, i) => (
+          <div key={i} className="row" style={{ gap: 14 }}>
+            <div className="skeleton" style={{ width: 36, height: 36, borderRadius: 12, flexShrink: 0 }} />
+            <div className="stack" style={{ gap: 7, flex: 1 }}>
+              <div className="skeleton" style={{ height: 12, width: `${55 + ((i * 17) % 35)}%` }} />
+              <div className="skeleton" style={{ height: 10, width: `${25 + ((i * 11) % 25)}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function ErrorBox({ error, onRetry }) {
   if (!error) return null;
@@ -125,7 +163,7 @@ export function Bars({ items, color = 'var(--primary)' }) {
  *   columns: [{ key, title, render?: (row) => node, width?, align? }]
  */
 export function DataTable({ columns, rows, rowKey = 'id', onRowClick, empty = 'Nothing here yet.', loading }) {
-  if (loading && !rows) return <Spinner />;
+  if (loading && !rows) return <TableSkeleton />;
   return (
     <div className="table-wrap">
       <table>
@@ -439,4 +477,15 @@ export function ConfirmProvider({ children }) {
 export function useConfirm() {
   const ask = use(ConfirmContext);
   return ask ?? ((o) => Promise.resolve(window.confirm(typeof o === 'string' ? o : [o.title, o.message].filter(Boolean).join('\n\n'))));
+}
+
+/** Thin glowing bar at the top while the admin waits for the server (quick requests stay invisible). */
+export function TopProgress({ busy }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    // Wait a moment before showing, hide right away when done
+    const id = setTimeout(() => setShow(busy), busy ? 300 : 0);
+    return () => clearTimeout(id);
+  }, [busy]);
+  return busy && show ?<div className="top-progress" role="progressbar" aria-label="Loading" /> : null;
 }

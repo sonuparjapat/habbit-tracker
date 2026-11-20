@@ -24,7 +24,7 @@ export default function Insights() {
         </View>
       </Screen>
     );
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="detail" />;
 
   // Same order as the Trackers tab
   const trackers = data ?? [];

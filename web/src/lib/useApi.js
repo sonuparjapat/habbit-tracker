@@ -1,8 +1,34 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useConfirm } from '@/components/admin/kit';
 import { get } from './api';
+
+/* How many requests are running right now — drives the thin progress bar at the top of the admin. */
+let pending = 0;
+const listeners = new Set();
+const notify = () => listeners.forEach((l) => l());
+async function tracked(promise) {
+  pending++;
+  notify();
+  try {
+    return await promise;
+  } finally {
+    pending--;
+    notify();
+  }
+}
+/** true while any admin request or save is running. */
+export function useBusy() {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => pending > 0,
+    () => false,
+  );
+}
 
 /**
  * Load data from the backend.
@@ -18,7 +44,7 @@ export function useResource(path) {
     latest.current = path;
     setState((s) => ({ ...s, loading: true }));
     try {
-      const { data } = await get(path);
+      const { data } = await tracked(get(path));
       if (latest.current === path) setState({ data, error: null, loading: false });
     } catch (error) {
       if (latest.current === path) setState((s) => ({ ...s, error, loading: false }));
@@ -50,7 +76,7 @@ export function useAction(toast) {
       setBusy(true);
       setError(null);
       try {
-        const result = await fn();
+        const result = await tracked(fn());
         if (success) toast?.(success, 'success');
         await after?.(result);
         return result;

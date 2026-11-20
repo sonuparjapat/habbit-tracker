@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Badge, ErrorBox, Field, PageHeader, Section, Spinner, Toggle, useToast } from '@/components/admin/kit';
+import { Badge, ErrorBox, Field, PageHeader, Section, PageSkeleton, Toggle, useToast } from '@/components/admin/kit';
 import { del, put } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
@@ -60,7 +60,7 @@ export default function SettingsPage() {
     return [...g.entries()];
   }, [data]);
 
-  if (loading && !data) return <Spinner />;
+  if (loading && !data) return <PageSkeleton />;
   if (error) return <ErrorBox error={error} onRetry={reload} />;
 
   const defs = Object.fromEntries(data.settings.map((s) => [s.key, s]));

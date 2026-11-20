@@ -615,16 +615,132 @@ export function Skeleton({ height, width = '100%', radius: r = radius.md, style 
   );
 }
 
-/** Full-screen loading: a shimmering outline of a screen instead of a lonely spinner. */
-export function Loading() {
+/** Little tips shown while a screen takes a moment. */
+const LOADING_TIPS = [
+  'Small promises, kept daily, build unshakable self-trust.',
+  'Tip: a streak shield saves your streak when you miss a day.',
+  'Tip: tap ✓ Done right on a reminder — no need to open the app.',
+  'Tip: every promise you keep hits this week’s boss.',
+  'Tip: your weekly review is ready every Sunday evening.',
+  'Tip: check-ins work offline and sync on their own.',
+];
+
+/**
+ * After a couple of seconds of waiting: a floating anchor + a rotating tip, so a slow moment
+ * feels intended. After ~8 s it explains that the server is waking up.
+ */
+function SlowLoadingNote() {
+  const [stage, setStage] = useState<'hidden' | 'tips' | 'waking'>('hidden');
+  const [tip, setTip] = useState(() => Math.floor(Math.random() * LOADING_TIPS.length));
+  const [bob] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    const show = setTimeout(() => setStage('tips'), 2500);
+    const wake = setTimeout(() => setStage('waking'), 8000);
+    const rotate = setInterval(() => setTip((i) => (i + 1) % LOADING_TIPS.length), 3500);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bob, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => {
+      clearTimeout(show);
+      clearTimeout(wake);
+      clearInterval(rotate);
+      loop.stop();
+    };
+  }, [bob]);
+  if (stage === 'hidden') return null;
   return (
-    <View style={{ flex: 1, padding: space.lg, paddingTop: 70, gap: 14, backgroundColor: colors.bg }} accessibilityLabel="Loading" accessible>
-      <Skeleton height={14} width="35%" radius={7} />
-      <Skeleton height={30} width="70%" radius={10} />
-      <Skeleton height={130} radius={radius.lg} style={{ marginTop: 10 }} />
-      <Skeleton height={86} radius={radius.lg} />
-      <Skeleton height={86} radius={radius.lg} />
-      <Skeleton height={86} radius={radius.lg} />
+    <View style={{ alignItems: 'center', gap: 10, marginTop: 18 }}>
+      <Animated.View style={{ transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) }, { rotate: bob.interpolate({ inputRange: [0, 1], outputRange: ['-6deg', '6deg'] }) }] }}>
+        <Gradient colors={gradients.primary} style={{ width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }} glow={colors.primary}>
+          <Icon name="anchor" size={28} />
+        </Gradient>
+      </Animated.View>
+      <Txt variant="caption" center style={{ maxWidth: 280 }}>
+        {stage === 'waking' ? 'Waking up the server — your data is safe, almost there…' : LOADING_TIPS[tip]}
+      </Txt>
+    </View>
+  );
+}
+
+type LoadingVariant = 'home' | 'list' | 'detail' | 'form' | 'cards';
+
+/** The outline of each kind of screen, so the page "fills in" instead of jumping. */
+function SkeletonLayout({ variant }: { variant: LoadingVariant }) {
+  const row = (key: number) => (
+    <View key={key} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <Skeleton height={44} width={44} radius={14} />
+      <View style={{ flex: 1, gap: 8 }}>
+        <Skeleton height={14} width="60%" radius={7} />
+        <Skeleton height={10} width="35%" radius={5} />
+      </View>
+    </View>
+  );
+  switch (variant) {
+    case 'list':
+      return (
+        <>
+          <Skeleton height={30} width="45%" radius={10} />
+          <View style={{ gap: 18, marginTop: 12 }}>{[0, 1, 2, 3, 4, 5].map(row)}</View>
+        </>
+      );
+    case 'detail':
+      return (
+        <>
+          <Skeleton height={150} radius={radius.xl} />
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {[0, 1, 2].map((i) => <Skeleton key={i} height={74} radius={radius.lg} style={{ flex: 1 }} width="30%" />)}
+          </View>
+          <Skeleton height={180} radius={radius.lg} />
+          <Skeleton height={86} radius={radius.lg} />
+        </>
+      );
+    case 'form':
+      return (
+        <>
+          <Skeleton height={44} radius={radius.md} />
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={{ gap: 8 }}>
+              <Skeleton height={10} width="30%" radius={5} />
+              <Skeleton height={50} radius={radius.md} />
+            </View>
+          ))}
+          <Skeleton height={54} radius={radius.md} style={{ marginTop: 10 }} />
+        </>
+      );
+    case 'cards':
+      return (
+        <>
+          <Skeleton height={230} radius={28} />
+          <Skeleton height={96} radius={radius.lg} />
+          <Skeleton height={96} radius={radius.lg} />
+        </>
+      );
+    default:
+      return (
+        <>
+          <Skeleton height={14} width="35%" radius={7} />
+          <Skeleton height={30} width="70%" radius={10} />
+          <Skeleton height={130} radius={radius.lg} style={{ marginTop: 10 }} />
+          <Skeleton height={86} radius={radius.lg} />
+          <Skeleton height={86} radius={radius.lg} />
+        </>
+      );
+  }
+}
+
+/**
+ * Full-screen loading: a shimmering outline of the screen that's coming (pick the closest `variant`),
+ * plus a friendly note if it takes more than a moment. Never a lonely spinner.
+ */
+export function Loading({ variant = 'home' }: { variant?: LoadingVariant }) {
+  return (
+    <View style={{ flex: 1, padding: space.lg, paddingTop: variant === 'home' ? 70 : 20, gap: 14, backgroundColor: colors.bg }} accessibilityLabel="Loading" accessible>
+      <SkeletonLayout variant={variant} />
+      <SlowLoadingNote />
     </View>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { BarChart, Bars, ErrorBox, PageHeader, Section, Spinner, StatCard } from '@/components/admin/kit';
+import { BarChart, Bars, ErrorBox, PageHeader, PageSkeleton, Section, Spinner, StatCard } from '@/components/admin/kit';
 import { useAdmin } from '@/components/AdminShell';
 import { can, PERMISSIONS as P } from '@/lib/roles';
 import { useResource } from '@/lib/useApi';
@@ -24,7 +24,7 @@ export default function DashboardPage() {
   const overview = useResource('/admin/overview');
   const analytics = useResource('/admin/analytics');
 
-  if (overview.loading && !overview.data) return <Spinner />;
+  if (overview.loading && !overview.data) return <PageSkeleton />;
   if (overview.error) return <ErrorBox error={overview.error} onRetry={overview.reload} />;
   const { users: u, activity, signups, trackersByCategory, trackersByType } = overview.data;
   const an = analytics.data;

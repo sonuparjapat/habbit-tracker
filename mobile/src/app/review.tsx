@@ -47,7 +47,7 @@ export default function Review() {
   const [draft, setDraft] = useState<{ week: string; wentWell: string; hard: string; nextFocus: string } | null>(null);
   const [saved, setSaved] = useState(false);
 
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="detail" />;
   if (error || !data) return <Screen edges={['bottom']}><ErrorView error={error} onRetry={refetch} /></Screen>;
 
   const answers = draft?.week === data.weekStart ? draft : { week: data.weekStart, wentWell: data.answers.wentWell ?? '', hard: data.answers.hard ?? '', nextFocus: data.answers.nextFocus ?? '' };

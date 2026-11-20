@@ -11,7 +11,7 @@ export default function EditTracker() {
   const update = useUpdateTracker(id);
   const remove = useDeleteTracker();
 
-  if (isLoading || !tracker) return <Loading />;
+  if (isLoading || !tracker) return <Loading variant="form" />;
 
   const doDelete = () =>
     remove.mutate(id, {

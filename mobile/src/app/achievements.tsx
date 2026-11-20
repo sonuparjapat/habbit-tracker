@@ -6,7 +6,7 @@ import { colors } from '@/theme';
 
 export default function Achievements() {
   const { data, isLoading, error, refetch, isRefetching } = useDashboard();
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="cards" />;
   if (error) return <Screen edges={['bottom']}><ErrorView error={error} onRetry={refetch} /></Screen>;
   const game = data?.game;
   if (!game) return <Screen edges={['bottom']}><EmptyState icon="trophy-outline" title="Levels are paused" message="XP and badges are switched off right now." /></Screen>;
