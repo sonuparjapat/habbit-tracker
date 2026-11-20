@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge, DataTable, ErrorBox, Field, Modal, PageHeader, Toggle, useToast } from '@/components/admin/kit';
+import { Badge, DataTable, ErrorBox, Field, Modal, PageHeader, Pager, SearchBox, Toggle, useClientList, useToast } from '@/components/admin/kit';
 import { del, patch, post } from '@/lib/api';
 import { useAction, useResource } from '@/lib/useApi';
 
@@ -16,6 +16,7 @@ export default function PacksPage() {
   const { run, busy } = useAction(toast);
 
   const templates = tpl?.templates ?? [];
+  const list = useClientList(data?.packs, (p) => `${p.name} ${p.slug} ${p.description} ${p.templateSlugs.join(' ')}`);
   const nameOf = (slug) => templates.find((t) => t.slug === slug)?.name ?? slug;
   const used = (p) => p.templateSlugs.reduce((s, slug) => s + (data?.usage?.[slug] ?? 0), 0);
 
@@ -46,14 +47,15 @@ export default function PacksPage() {
   return (
     <div className="stack" style={{ gap: 20 }}>
       <PageHeader title="Starter packs" subtitle="Bundles of templates. New members pick one and get several trackers in one tap — no empty screen.">
+        <SearchBox onChange={list.setQ} placeholder="Search packs…" />
         <button className="btn btn-primary" onClick={() => setEditing(blank)}>+ New pack</button>
       </PageHeader>
       <ErrorBox error={error} onRetry={reload} />
 
       <DataTable
         loading={loading}
-        rows={data?.packs}
-        empty="No packs yet."
+        rows={data ? list.items : null}
+        empty={data?.packs?.length ? 'Nothing matches your search.' : 'No packs yet.'}
         onRowClick={(p) => setEditing({ ...p })}
         columns={[
           {
@@ -74,6 +76,7 @@ export default function PacksPage() {
           { key: 'active', title: 'Status', render: (p) => (p.active ? <Badge tone="success">Shown</Badge> : <Badge>Hidden</Badge>) },
         ]}
       />
+      {data ? <Pager page={list.page} pages={list.pages} total={list.total} onPage={list.setPage} noun="pack" /> : null}
 
       {editing ? (
         <Modal

@@ -15,6 +15,7 @@ import { HttpError, isUuid, parse } from '../middleware/errors.js';
 import { audit } from '../services/audit.js';
 import { PERMISSIONS as P } from '../services/roles.js';
 import { retryDueOps, retryOpNow } from '../services/sync.js';
+import { listParams, pageInfo } from '../utils/listing.js';
 
 export const adminSyncRouter = Router();
 const guard = requirePermission(P.SYSTEM_VIEW);
@@ -23,19 +24,23 @@ const STATUSES = ['failed', 'dead', 'rejected', 'pending', 'applied', 'supersede
 const NEEDS_ATTENTION = ['failed', 'dead', 'rejected'];
 
 adminSyncRouter.get('/sync', guard, async (req, res) => {
-  const q = parse(z.object({ status: z.enum(STATUSES).optional() }), req.query);
-  const [counts, ops] = await Promise.all([
+  const q = parse(z.object({ status: z.enum(STATUSES).optional() }), { status: req.query.status });
+  const p = listParams(req.query);
+  // Filter by status, and search the member's email or what was changed
+  const params = [q.status ? [q.status] : NEEDS_ATTENTION];
+  const search = p.like ? ` AND (m.email ILIKE $${params.push(p.like)} OR s.path ILIKE $${params.length} OR s.last_error ILIKE $${params.length})` : '';
+  const from = `FROM sync_ops s JOIN members m ON m.id = s.user_id WHERE s.status = ANY($1::text[])${search}`;
+  const [counts, ops, total] = await Promise.all([
     query(`SELECT status, count(*)::int AS n FROM sync_ops WHERE created_at > now() - interval '30 days' GROUP BY status`),
     query(
       `SELECT s.id, s.method, s.path, s.body, s.status, s.attempts, s.last_error AS "lastError", s.next_attempt_at AS "nextAttemptAt",
               s.client_created_at AS "madeAt", s.created_at AS "receivedAt", s.applied_at AS "appliedAt", m.email
-         FROM sync_ops s JOIN members m ON m.id = s.user_id
-        WHERE s.status = ANY($1::text[])
-        ORDER BY s.created_at DESC LIMIT 200`,
-      [q.status ? [q.status] : NEEDS_ATTENTION],
+         ${from} ORDER BY s.created_at DESC LIMIT ${p.limit} OFFSET ${p.offset}`,
+      params,
     ),
+    query(`SELECT count(*)::int AS n ${from}`, params),
   ]);
-  res.json({ counts: Object.fromEntries(counts.rows.map((r) => [r.status, r.n])), ops: ops.rows });
+  res.json({ counts: Object.fromEntries(counts.rows.map((r) => [r.status, r.n])), ops: ops.rows, ...pageInfo(total.rows[0].n, p) });
 });
 
 adminSyncRouter.post('/sync/retry-all', guard, async (req, res) => {

@@ -50,11 +50,32 @@ export default function SystemPage() {
               Emails are only printed in the server log. Set BREVO_API_KEY on the server to send real emails.
             </div>
           ) : null}
+          {email.health ? (
+            <div className="stack" style={{ gap: 8 }}>
+              <div className="row wrap small" style={{ gap: 14 }}>
+                <span><strong>{email.health.sent}</strong> <span className="muted">sent since the server started</span></span>
+                <span style={{ color: email.health.failed ? 'var(--red)' : undefined }}>
+                  <strong>{email.health.failed}</strong> <span className="muted">failed</span>
+                </span>
+                {email.health.lastSentAt ? <span className="muted">last sent {timeAgo(email.health.lastSentAt)}</span> : null}
+              </div>
+              {email.health.lastError ? (
+                <div className="error">
+                  <strong>Last failure ({timeAgo(email.health.lastErrorAt)}):</strong> {email.health.lastError}
+                  {email.health.hint ? (
+                    <div style={{ marginTop: 8 }}>
+                      <strong>How to fix:</strong> {email.health.hint}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <div className="row wrap" style={{ alignItems: 'flex-end' }}>
             <Field label="Send a test email to">
               <input className="input" type="email" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 280 }} />
             </Field>
-            <button className="btn btn-primary" disabled={busy || !to.includes('@')} onClick={() => run(() => post('/admin/system/test-email', { to }), { success: `Test email sent to ${to}` })}>
+            <button className="btn btn-primary" disabled={busy || !to.includes('@')} onClick={() => run(() => post('/admin/system/test-email', { to }), { success: `Test email sent to ${to} — check the inbox and spam folder` }).then(reload)}>
               {busy ? 'Sending…' : 'Send test email'}
             </button>
           </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge, Drawer, Empty, ErrorBox, Field, PageHeader, Pagination, Spinner, Tabs, useToast } from '@/components/admin/kit';
+import { Badge, Drawer, Empty, ErrorBox, Field, PageHeader, Pager, SearchBox, Spinner, Tabs, useListQuery, useToast } from '@/components/admin/kit';
 import { del, patch } from '@/lib/api';
 import { fmtDateTime, timeAgo } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
@@ -12,25 +12,23 @@ const STATUSES = { new: { label: 'New', tone: 'danger' }, in_progress: { label: 
 export default function FeedbackPage() {
   const [status, setStatus] = useState('new');
   const [kind, setKind] = useState('');
-  const [page, setPage] = useState(1);
   const [open, setOpen] = useState(null);
-  const params = new URLSearchParams({ page: String(page) });
-  if (status) params.set('status', status);
-  if (kind) params.set('kind', kind);
-  const { data, error, loading, reload } = useResource(`/admin/feedback?${params}`);
+  const list = useListQuery('/admin/feedback', { status, kind }, 50);
+  const { data, error, loading, reload } = useResource(list.path);
   const c = data?.counts ?? {};
 
   return (
     <div className="stack" style={{ gap: 20 }}>
       <PageHeader title="Feedback" subtitle="Bug reports, ideas and questions sent from the app.">
-        <select value={kind} onChange={(e) => { setKind(e.target.value); setPage(1); }}>
+        <SearchBox onChange={list.setQ} placeholder="Search message, name, email…" />
+        <select value={kind} onChange={(e) => setKind(e.target.value)}>
           <option value="">All types</option>
           {Object.entries(KINDS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
       </PageHeader>
       <Tabs
         value={status}
-        onChange={(v) => { setStatus(v); setPage(1); }}
+        onChange={(v) => setStatus(v)}
         options={[
           { value: 'new', label: 'New', count: c.new },
           { value: 'in_progress', label: 'In progress', count: c.in_progress },
@@ -40,7 +38,7 @@ export default function FeedbackPage() {
       />
       <ErrorBox error={error} onRetry={reload} />
       {loading && !data ? <Spinner /> : null}
-      {data && !data.feedback.length ? <div className="card"><Empty>{status === 'new' ? 'Inbox zero 🎉 — nothing new.' : 'Nothing here.'}</Empty></div> : null}
+      {data && !data.feedback.length ? <div className="card"><Empty>{list.q ? `Nothing matches “${list.q}”.` : status === 'new' ? 'Inbox zero 🎉 — nothing new.' : 'Nothing here.'}</Empty></div> : null}
       <div className="stack" style={{ gap: 10 }}>
         {data?.feedback.map((f) => (
           <div key={f.id} className="card" style={{ cursor: 'pointer' }} onClick={() => setOpen(f)}>
@@ -56,7 +54,7 @@ export default function FeedbackPage() {
           </div>
         ))}
       </div>
-      {data ? <Pagination page={page} hasNext={data.feedback.length === 50} onPage={setPage} /> : null}
+      {data ? <Pager page={data.page} pages={data.pages} total={data.total} onPage={list.setPage} noun="message" /> : null}
       {open ? <FeedbackDrawer item={open} onClose={() => setOpen(null)} onChanged={() => { setOpen(null); reload(); }} /> : null}
     </div>
   );

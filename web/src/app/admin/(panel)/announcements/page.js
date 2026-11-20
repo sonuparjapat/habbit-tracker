@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge, DataTable, ErrorBox, Field, Modal, PageHeader, Toggle, useToast } from '@/components/admin/kit';
+import { Badge, DataTable, ErrorBox, Field, Modal, PageHeader, Pager, SearchBox, Toggle, useListQuery, useToast } from '@/components/admin/kit';
 import { del, patch, post } from '@/lib/api';
 import { fmtDateTime } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
@@ -26,7 +26,8 @@ const blank = { title: '', body: '', level: 'info', ctaLabel: '', ctaUrl: '', st
 
 export default function AnnouncementsPage() {
   const toast = useToast();
-  const { data, error, loading, reload } = useResource('/admin/announcements');
+  const list = useListQuery('/admin/announcements');
+  const { data, error, loading, reload } = useResource(list.path);
   const [editing, setEditing] = useState(null);
   const { run } = useAction(toast);
 
@@ -36,13 +37,14 @@ export default function AnnouncementsPage() {
   return (
     <div className="stack" style={{ gap: 20 }}>
       <PageHeader title="Announcements" subtitle="Banners shown at the top of the app’s Today screen. Use them for new features, tips or downtime notices.">
+        <SearchBox onChange={list.setQ} placeholder="Search announcements…" />
         <button className="btn btn-primary" onClick={() => setEditing(blank)}>+ New announcement</button>
       </PageHeader>
       <ErrorBox error={error} onRetry={reload} />
       <DataTable
         loading={loading}
         rows={data?.announcements}
-        empty="No announcements yet."
+        empty={list.q ? `Nothing matches “${list.q}”.` : 'No announcements yet.'}
         onRowClick={(a) => setEditing(a)}
         columns={[
           {
@@ -73,6 +75,7 @@ export default function AnnouncementsPage() {
           },
         ]}
       />
+      {data ? <Pager page={data.page} pages={data.pages} total={data.total} onPage={list.setPage} noun="announcement" /> : null}
       {editing ? <Editor initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} /> : null}
     </div>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge, DataTable, ErrorBox, PageHeader, Section, StatCard, useToast } from '@/components/admin/kit';
+import { Badge, DataTable, ErrorBox, PageHeader, Pager, SearchBox, Section, StatCard, useListQuery, useToast } from '@/components/admin/kit';
 import { post } from '@/lib/api';
 import { fmtDateTime } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
@@ -49,7 +49,8 @@ function describe(op) {
 export default function SyncPage() {
   const toast = useToast();
   const [status, setStatus] = useState('');
-  const { data, error, loading, reload } = useResource(`/admin/sync${status ? `?status=${status}` : ''}`);
+  const list = useListQuery('/admin/sync', { status });
+  const { data, error, loading, reload } = useResource(list.path);
   const { run, busy } = useAction(toast);
   const c = data?.counts ?? {};
   const attention = (c.failed ?? 0) + (c.dead ?? 0) + (c.rejected ?? 0);
@@ -76,9 +77,12 @@ export default function SyncPage() {
       <Section
         title="Changes"
         action={
+          <div className="list-tools">
+          <SearchBox onChange={list.setQ} placeholder="Search email, change, error…" />
           <select value={status} onChange={(e) => setStatus(e.target.value)}>
             {FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
           </select>
+          </div>
         }>
         <DataTable
           loading={loading}
@@ -117,6 +121,7 @@ export default function SyncPage() {
             },
           ]}
         />
+        {data ? <Pager page={data.page} pages={data.pages} total={data.total} onPage={list.setPage} noun="change" /> : null}
       </Section>
     </div>
   );

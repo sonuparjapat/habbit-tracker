@@ -22,6 +22,7 @@ function getTransport() {
     transport = async ({ to, subject, html, text }) => {
       const res = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
+        signal: AbortSignal.timeout(15_000), // never let a slow email provider hang a sign-up
         headers: { 'api-key': brevo.apiKey, 'content-type': 'application/json', accept: 'application/json' },
         body: JSON.stringify({ sender: from, to: [{ email: to }], subject, htmlContent: html, textContent: text }),
       });
@@ -78,8 +79,36 @@ function layout(title, bodyHtml) {
 const codeBlock = (code) =>
   `<div style="font-size:34px;font-weight:800;letter-spacing:8px;background:#1A1F2B;border-radius:14px;padding:18px;text-align:center;margin:20px 0;color:#fff">${code}</div>`;
 
+/**
+ * What happened to the last emails — shown in Admin → System, so a broken email setup is obvious
+ * (instead of only appearing in the server log).
+ */
+export const emailHealth = { sent: 0, failed: 0, lastSentAt: null, lastErrorAt: null, lastError: null, hint: null };
+
+/** Turn a provider error into what to do about it. */
+function hintFor(message) {
+  const m = String(message).toLowerCase();
+  if (m.includes('ip')) return 'Brevo is blocking this server’s IP address. In Brevo go to Settings → Security → Authorised IPs and turn the IP restriction off (or add the server’s IP).';
+  if (m.includes('sender') || m.includes('not valid') || m.includes('not verified'))
+    return 'MAIL_FROM is not a verified sender in Brevo. Verify it in Brevo → Senders, Domains & Dedicated IPs → Senders, or use one that is.';
+  if (m.includes('401') || m.includes('key not found') || m.includes('unauthorized'))
+    return 'The BREVO_API_KEY is wrong, deleted, or has a typo in its name on the server. Create a new key in Brevo → SMTP & API → API Keys and set it in Render → Environment.';
+  if (m.includes('timeout') || m.includes('aborted') || m.includes('fetch failed')) return 'The email provider did not answer in time. Usually temporary — try the test email again.';
+  return null;
+}
+
 export async function sendEmail(message) {
-  await getTransport()(message);
+  try {
+    await getTransport()(message);
+    emailHealth.sent++;
+    emailHealth.lastSentAt = new Date().toISOString();
+  } catch (err) {
+    emailHealth.failed++;
+    emailHealth.lastErrorAt = new Date().toISOString();
+    emailHealth.lastError = String(err?.message ?? err).slice(0, 400);
+    emailHealth.hint = hintFor(emailHealth.lastError);
+    throw err;
+  }
 }
 
 export function sendVerificationCode(to, name, code) {

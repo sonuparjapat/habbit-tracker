@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Pager, SearchBox, useClientList } from '@/components/admin/kit';
 import { del, get, patch, post } from '@/lib/api';
 
 const CATEGORIES = ['trading', 'fitness', 'mind', 'money', 'productivity', 'quit', 'other'];
@@ -18,6 +19,7 @@ export default function TemplatesPage() {
   const [list, setList] = useState(null);
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(null);
+  const view = useClientList(list, (t) => `${t.name} ${t.slug} ${t.subtitle ?? ''} ${t.category} ${t.type}`);
 
   const load = useCallback(() => {
     get('/admin/templates').then((res) => setList(res.data.templates)).catch((e) => setError(e.message));
@@ -40,7 +42,10 @@ export default function TemplatesPage() {
           <h1>Templates</h1>
           <p>What users see in “New tracker”. Changes go live instantly — no app update needed.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setEditing({ ...blank })}>+ New template</button>
+        <div className="row wrap">
+          <SearchBox onChange={view.setQ} placeholder="Search templates…" />
+          <button className="btn btn-primary" onClick={() => setEditing({ ...blank })}>+ New template</button>
+        </div>
       </div>
       {error ? <div className="error">{error}</div> : null}
       {!list ? <div className="spinner" /> : null}
@@ -58,7 +63,7 @@ export default function TemplatesPage() {
               </tr>
             </thead>
             <tbody>
-              {list.map((t) => (
+              {view.items.map((t) => (
                 <tr key={t.id} style={{ opacity: t.active ? 1 : 0.5 }}>
                   <td>
                     <div className="row">
@@ -84,8 +89,10 @@ export default function TemplatesPage() {
               ))}
             </tbody>
           </table>
+          {!view.items.length ? <div className="empty">{list.length ? 'Nothing matches your search.' : 'No templates yet.'}</div> : null}
         </div>
       ) : null}
+      {list ? <Pager page={view.page} pages={view.pages} total={view.total} onPage={view.setPage} noun="template" /> : null}
       {editing ? (
         <TemplateEditor
           initial={editing}

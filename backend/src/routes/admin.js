@@ -20,7 +20,7 @@
  *   POST   /api/admin/starter-packs             add a pack
  *   PATCH  /api/admin/starter-packs/:id         edit / show / hide a pack
  *   DELETE /api/admin/starter-packs/:id         delete (built-in packs are hidden instead)
- *   GET    /api/admin/audit-logs                who did what, when
+ *   GET    /api/admin/audit-logs                who did what, when (?q= search, ?page=)
  */
 import { Router } from 'express';
 import { z } from 'zod';
@@ -34,6 +34,7 @@ import { sendAccountStatusEmail } from '../services/email.js';
 import { lockAccount, unlockAccount } from '../services/security.js';
 import { isDefaultPack, PACK_FIELDS } from '../services/starterPacks.js';
 import { parseConfig } from '../services/trackerConfig.js';
+import { listParams, pageInfo } from '../utils/listing.js';
 
 export const adminRouter = Router();
 const P = PERMISSIONS;
@@ -379,11 +380,17 @@ adminRouter.delete('/starter-packs/:id', requirePermission(P.TEMPLATES_MANAGE), 
 /* -------------------------------- Audit log -------------------------------- */
 
 adminRouter.get('/audit-logs', requirePermission(P.AUDIT_VIEW), async (req, res) => {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const { rows } = await query(
-    `SELECT id, actor_email AS "actorEmail", action, target_type AS "targetType", target_id AS "targetId", meta, created_at AS "createdAt"
-       FROM audit_logs ORDER BY created_at DESC LIMIT 50 OFFSET $1`,
-    [(page - 1) * 50],
-  );
-  res.json({ logs: rows, page });
+  const p = listParams({ limit: 50, ...req.query });
+  // Search who did it, what they did, or what it was done to
+  const where = p.like ? `WHERE actor_email ILIKE $1 OR action ILIKE $1 OR target_type ILIKE $1 OR target_id ILIKE $1 OR meta::text ILIKE $1` : '';
+  const params = p.like ? [p.like] : [];
+  const [{ rows }, { rows: total }] = await Promise.all([
+    query(
+      `SELECT id, actor_email AS "actorEmail", action, target_type AS "targetType", target_id AS "targetId", meta, created_at AS "createdAt"
+         FROM audit_logs ${where} ORDER BY created_at DESC LIMIT ${p.limit} OFFSET ${p.offset}`,
+      params,
+    ),
+    query(`SELECT count(*)::int AS n FROM audit_logs ${where}`, params),
+  ]);
+  res.json({ logs: rows, ...pageInfo(total[0].n, p) });
 });

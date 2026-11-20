@@ -32,10 +32,11 @@ import { HttpError, isUuid, parse } from '../middleware/errors.js';
 import { audit } from '../services/audit.js';
 import { broadcast, countAudience, PUSH_LINKS } from '../services/broadcast.js';
 import { CATEGORY_KEYS } from '../services/catalog.js';
-import { sendEmail } from '../services/email.js';
+import { emailHealth, sendEmail } from '../services/email.js';
 import { lastNudgeRun, runNudges } from '../services/nudges.js';
 import { PERMISSIONS as P } from '../services/roles.js';
 import { ruleLabel } from '../services/rules.js';
+import { listParams, pageInfo } from '../utils/listing.js';
 import { getSettings, resetSetting, saveSettings, SETTINGS } from '../services/settings.js';
 
 export const adminContentRouter = Router();
@@ -104,9 +105,15 @@ const ANN_FIELDS = `id, title, body, level, cta_label AS "ctaLabel", cta_url AS 
   active, created_at AS "createdAt", updated_at AS "updatedAt",
   (active AND (starts_at IS NULL OR starts_at <= now()) AND (ends_at IS NULL OR ends_at > now())) AS live`;
 
-adminContentRouter.get('/announcements', requirePermission(P.CONTENT_MANAGE), async (_req, res) => {
-  const { rows } = await query(`SELECT ${ANN_FIELDS} FROM announcements ORDER BY created_at DESC LIMIT 200`);
-  res.json({ announcements: rows });
+adminContentRouter.get('/announcements', requirePermission(P.CONTENT_MANAGE), async (req, res) => {
+  const p = listParams(req.query);
+  const where = p.like ? 'WHERE title ILIKE $1 OR body ILIKE $1' : '';
+  const params = p.like ? [p.like] : [];
+  const [{ rows }, { rows: total }] = await Promise.all([
+    query(`SELECT ${ANN_FIELDS} FROM announcements ${where} ORDER BY created_at DESC LIMIT ${p.limit} OFFSET ${p.offset}`, params),
+    query(`SELECT count(*)::int AS n FROM announcements ${where}`, params),
+  ]);
+  res.json({ announcements: rows, ...pageInfo(total[0].n, p) });
 });
 
 adminContentRouter.post('/announcements', requirePermission(P.CONTENT_MANAGE), async (req, res) => {
@@ -160,26 +167,29 @@ adminContentRouter.get('/feedback', requirePermission(P.FEEDBACK_MANAGE), async 
     z.object({
       status: z.enum(['new', 'in_progress', 'resolved']).optional(),
       kind: z.enum(['bug', 'idea', 'question', 'other', 'crash']).optional(),
-      page: z.coerce.number().int().min(1).default(1),
     }),
-    req.query,
+    { status: req.query.status, kind: req.query.kind },
   );
+  const p = listParams({ limit: 50, ...req.query });
   const where = [];
   const params = [];
   if (q.status) where.push(`f.status = $${params.push(q.status)}`);
   if (q.kind) where.push(`f.kind = $${params.push(q.kind)}`);
+  // Search the message, the sender's email or name
+  if (p.like) where.push(`(f.message ILIKE $${params.push(p.like)} OR f.email ILIKE $${params.length} OR m.name ILIKE $${params.length})`);
   const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const [{ rows }, { rows: counts }] = await Promise.all([
+  const [{ rows }, { rows: counts }, { rows: total }] = await Promise.all([
     query(
       `SELECT f.id, f.kind, f.message, f.email, f.status, f.admin_note AS "adminNote", f.app_version AS "appVersion",
               f.platform, f.created_at AS "createdAt", f.updated_at AS "updatedAt", f.user_id AS "userId", m.name AS "userName"
          FROM feedback f LEFT JOIN members m ON m.id = f.user_id ${w}
-        ORDER BY f.created_at DESC LIMIT 50 OFFSET ${(q.page - 1) * 50}`,
+        ORDER BY f.created_at DESC LIMIT ${p.limit} OFFSET ${p.offset}`,
       params,
     ),
     query(`SELECT status, count(*) AS n FROM feedback GROUP BY status`),
+    query(`SELECT count(*)::int AS n FROM feedback f LEFT JOIN members m ON m.id = f.user_id ${w}`, params),
   ]);
-  res.json({ feedback: rows, counts: Object.fromEntries(counts.map((c) => [c.status, c.n])), page: q.page });
+  res.json({ feedback: rows, counts: Object.fromEntries(counts.map((c) => [c.status, c.n])), ...pageInfo(total[0].n, p) });
 });
 
 adminContentRouter.patch('/feedback/:id', requirePermission(P.FEEDBACK_MANAGE), async (req, res) => {
@@ -266,7 +276,7 @@ adminContentRouter.get('/system', requirePermission(P.SYSTEM_VIEW), async (_req,
       tables,
     },
     migrations: { applied, pending: files.filter((f) => f.endsWith('.sql') && !appliedSet.has(f)) },
-    email: { provider: config.email.provider, from: `${config.email.from.name} <${config.email.from.email}>`, problem: config.email.problem },
+    email: { provider: config.email.provider, from: `${config.email.from.name} <${config.email.from.email}>`, problem: config.email.problem, health: emailHealth },
     nudges: { lastRun: lastNudgeRun, ...(await nudgeCounts()) },
   });
 });
@@ -299,7 +309,7 @@ adminContentRouter.post('/system/test-email', requirePermission(P.SYSTEM_VIEW), 
       html: `<p>This is a test email from the <b>${config.appName}</b> admin panel.</p><p>Email is working ✅</p>`,
     });
   } catch (err) {
-    throw new HttpError(502, `Email failed: ${err.message}`, 'EMAIL_FAILED');
+    throw new HttpError(502, `Email failed: ${err.message}${emailHealth.hint ? ` — ${emailHealth.hint}` : ''}`, 'EMAIL_FAILED');
   }
   await audit(req, 'system.test_email', 'email', to);
   res.json({ ok: true, provider: config.email.provider });
@@ -315,17 +325,23 @@ const audienceSchema = z.discriminatedUnion('kind', [
 ]);
 
 /** GET /api/admin/push — recent notifications and how many members can receive one. */
-adminContentRouter.get('/push', requirePermission(P.CONTENT_MANAGE), async (_req, res) => {
-  const [{ rows: campaigns }, reachable] = await Promise.all([
+adminContentRouter.get('/push', requirePermission(P.CONTENT_MANAGE), async (req, res) => {
+  const p = listParams(req.query);
+  const where = p.like ? 'WHERE c.title ILIKE $1 OR c.body ILIKE $1 OR m.email ILIKE $1' : '';
+  const params = p.like ? [p.like] : [];
+  const [{ rows: campaigns }, { rows: total }, reachable, { rows: last }] = await Promise.all([
     query(
       `SELECT c.id, c.title, c.body, c.link, c.audience, c.recipients, c.delivered, c.failed, c.created_at AS "createdAt",
               m.email AS "sentBy"
-         FROM push_campaigns c LEFT JOIN members m ON m.id = c.created_by
-        ORDER BY c.created_at DESC LIMIT 50`,
+         FROM push_campaigns c LEFT JOIN members m ON m.id = c.created_by ${where}
+        ORDER BY c.created_at DESC LIMIT ${p.limit} OFFSET ${p.offset}`,
+      params,
     ),
+    query(`SELECT count(*)::int AS n FROM push_campaigns c LEFT JOIN members m ON m.id = c.created_by ${where}`, params),
     countAudience({ kind: 'all' }),
+    query(`SELECT title, created_at AS "createdAt", (SELECT count(*)::int FROM push_campaigns) AS sent FROM push_campaigns ORDER BY created_at DESC LIMIT 1`),
   ]);
-  res.json({ campaigns, reachable, links: PUSH_LINKS, interests: CATEGORY_KEYS });
+  res.json({ campaigns, ...pageInfo(total[0].n, p), reachable, lastSent: last[0] ?? null, sentTotal: last[0]?.sent ?? 0, links: PUSH_LINKS, interests: CATEGORY_KEYS });
 });
 
 /** POST /api/admin/push/count — { audience } → { count } (shown live while composing). */

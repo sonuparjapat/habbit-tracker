@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DataTable, ErrorBox, Field, PageHeader, Section, StatCard, useToast } from '@/components/admin/kit';
+import { DataTable, ErrorBox, Field, PageHeader, Pager, SearchBox, Section, StatCard, useListQuery, useToast } from '@/components/admin/kit';
 import { post } from '@/lib/api';
 import { fmtDateTime } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
@@ -42,7 +42,8 @@ function PhonePreview({ title, body }) {
 
 export default function NotificationsPage() {
   const toast = useToast();
-  const { data, error, loading, reload } = useResource('/admin/push');
+  const history = useListQuery('/admin/push', {}, 20);
+  const { data, error, loading, reload } = useResource(history.path);
   const { run, busy } = useAction(toast);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -103,11 +104,11 @@ export default function NotificationsPage() {
 
       <div className="grid grid-4">
         <StatCard label="Can receive" value={data?.reachable ?? '—'} sub="phones with notifications allowed" icon="📱" accent="violet" />
-        <StatCard label="Sent so far" value={data?.campaigns.length ?? '—'} sub="notifications (last 50 shown)" icon="📨" accent="blue" />
+        <StatCard label="Sent so far" value={data?.sentTotal ?? '—'} sub="notifications in total" icon="📨" accent="blue" />
         <StatCard
           label="Last sent"
-          value={data?.campaigns[0] ? fmtDateTime(data.campaigns[0].createdAt) : '—'}
-          sub={data?.campaigns[0]?.title ?? ''}
+          value={data?.lastSent ? fmtDateTime(data.lastSent.createdAt) : '—'}
+          sub={data?.lastSent?.title ?? ''}
           icon="🕒"
           accent="green"
         />
@@ -163,11 +164,11 @@ export default function NotificationsPage() {
         <PhonePreview title={title} body={body} />
       </div>
 
-      <Section title="Sent notifications">
+      <Section title="Sent notifications" action={<SearchBox onChange={history.setQ} placeholder="Search sent notifications…" />}>
         <DataTable
           loading={loading}
           rows={data?.campaigns}
-          empty="Nothing sent yet."
+          empty={history.q ? `Nothing matches “${history.q}”.` : 'Nothing sent yet.'}
           columns={[
             { key: 'title', title: 'Notification', render: (c) => (<div><strong>{c.title}</strong><div className="muted small">{c.body}</div></div>) },
             { key: 'audience', title: 'Audience', render: (c) => <span className="small">{audienceText(c.audience)}</span> },
@@ -175,6 +176,7 @@ export default function NotificationsPage() {
             { key: 'createdAt', title: 'Sent', render: (c) => <span className="small muted">{fmtDateTime(c.createdAt)}<br />{c.sentBy}</span> },
           ]}
         />
+        {data ? <Pager page={data.page} pages={data.pages} total={data.total} onPage={history.setPage} noun="notification" /> : null}
       </Section>
     </div>
   );

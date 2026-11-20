@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge, DataTable, ErrorBox, Field, PageHeader, Section, Spinner, StatCard, useToast } from '@/components/admin/kit';
+import { Badge, DataTable, ErrorBox, Field, PageHeader, Pager, SearchBox, Section, Spinner, StatCard, useClientList, useListQuery, useToast } from '@/components/admin/kit';
 import { del, post } from '@/lib/api';
 import { fmtDateTime, timeAgo } from '@/lib/format';
 import { useAction, useResource } from '@/lib/useApi';
@@ -31,6 +31,13 @@ export default function SecurityPage() {
   const [target, setTarget] = useState('');
   const [reason, setReason] = useState('');
   const [hours, setHours] = useState('24');
+  const [kind, setKind] = useState('');
+  // The security log grows with every failed sign-in → searched and paged on the server
+  const events = useListQuery('/admin/security/events', { kind });
+  const log = useResource(events.path);
+  // Blocked IPs and locked accounts are short lists → searched in the browser
+  const blocked = useClientList(data?.blocked, (b) => `${b.target} ${b.reason ?? ''} ${b.createdBy ?? ''}`, 10);
+  const locked = useClientList(data?.locked, (m) => `${m.email} ${m.name}`, 10);
 
   if (loading && !data) return <Spinner />;
   if (error) return <ErrorBox error={error} onRetry={reload} />;
@@ -52,7 +59,7 @@ export default function SecurityPage() {
   return (
     <div className="stack" style={{ gap: 20 }}>
       <PageHeader title="Security" subtitle="Blocked networks, locked accounts and suspicious sign-in activity.">
-        <button className="btn" onClick={reload}>Refresh</button>
+        <button className="btn" onClick={() => { reload(); log.reload(); }}>Refresh</button>
       </PageHeader>
 
       <div className="grid grid-4">
@@ -83,10 +90,10 @@ export default function SecurityPage() {
       </Section>
 
       <div className="grid grid-2">
-        <Section title="Blocked now">
+        <Section title="Blocked now" action={<SearchBox onChange={blocked.setQ} placeholder="Search IP or reason…" width={200} />}>
           <DataTable
             rowKey="id"
-            rows={data.blocked}
+            rows={blocked.items}
             empty="Nothing is blocked."
             columns={[
               { key: 'target', title: 'IP / range', render: (b) => (<div><span className="mono">{b.target}</span> {b.auto ? <Badge tone="warning">auto</Badge> : null}<div className="small muted">{b.reason ?? '—'}</div></div>) },
@@ -94,6 +101,7 @@ export default function SecurityPage() {
               { key: 'x', title: '', align: 'right', render: (b) => <button className="btn btn-sm" disabled={busy} onClick={() => unblock(b)}>Unblock</button> },
             ]}
           />
+          <Pager page={blocked.page} pages={blocked.pages} total={blocked.total} onPage={blocked.setPage} noun="block" />
         </Section>
 
         <Section title="Most wrong passwords · last 24h">
@@ -120,9 +128,9 @@ export default function SecurityPage() {
         </Section>
       </div>
 
-      <Section title="Locked accounts">
+      <Section title="Locked accounts" action={<SearchBox onChange={locked.setQ} placeholder="Search email or name…" width={220} />}>
         <DataTable
-          rows={data.locked}
+          rows={locked.items}
           empty="No locked accounts."
           columns={[
             { key: 'email', title: 'Member', render: (m) => (<div><strong>{m.name}</strong><div className="small muted">{m.email}</div></div>) },
@@ -131,11 +139,23 @@ export default function SecurityPage() {
             { key: 'x', title: '', align: 'right', render: (m) => <button className="btn btn-sm" disabled={busy} onClick={() => unlock(m)}>Unlock</button> },
           ]}
         />
+        <Pager page={locked.page} pages={locked.pages} total={locked.total} onPage={locked.setPage} noun="locked account" />
       </Section>
 
-      <Section title="Security log">
+      <Section
+        title="Security log"
+        action={
+          <div className="list-tools">
+            <SearchBox onChange={events.setQ} placeholder="Search email, IP, detail…" />
+            <select value={kind} onChange={(e) => setKind(e.target.value)}>
+              <option value="">All events</option>
+              {Object.entries(EVENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+        }>
         <DataTable
-          rows={data.events}
+          rows={log.data?.events}
+          loading={log.loading}
           empty="Nothing yet."
           columns={[
             { key: 'kind', title: 'Event', render: (e) => <Badge tone={EVENT_LABELS[e.kind]?.tone ?? 'neutral'}>{EVENT_LABELS[e.kind]?.label ?? e.kind}</Badge> },
@@ -145,6 +165,7 @@ export default function SecurityPage() {
             { key: 'createdAt', title: 'When', render: (e) => <span className="small muted">{fmtDateTime(e.createdAt)}</span> },
           ]}
         />
+        {log.data ? <Pager page={log.data.page} pages={log.data.pages} total={log.data.total} onPage={events.setPage} noun="event" /> : null}
       </Section>
     </div>
   );

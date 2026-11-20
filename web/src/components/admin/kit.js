@@ -3,7 +3,7 @@
 /**
  * Admin UI kit — every admin page is built from these, so new pages need no new UI code.
  */
-import { createContext, use, useCallback, useState } from 'react';
+import { createContext, use, useCallback, useRef, useState } from 'react';
 
 /* --------------------------------- Layout --------------------------------- */
 
@@ -153,6 +153,105 @@ export function DataTable({ columns, rows, rowKey = 'id', onRowClick, empty = 'N
       </table>
     </div>
   );
+}
+
+/* --------------------------- Search + paging (every list) --------------------------- */
+
+/** A search box that waits until typing pauses (so the server isn't asked on every key). */
+export function SearchBox({ value, onChange, placeholder = 'Search…', width = 260 }) {
+  const [text, setText] = useState(value ?? '');
+  const timer = useRef(null);
+  return (
+    <div className="search-box" style={{ width }}>
+      <span className="search-icon" aria-hidden>⌕</span>
+      <input
+        className="input"
+        type="search"
+        value={text}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        onChange={(e) => {
+          const v = e.target.value;
+          setText(v);
+          clearTimeout(timer.current);
+          timer.current = setTimeout(() => onChange(v.trim()), 300);
+        }}
+      />
+    </div>
+  );
+}
+
+/** "Page 2 of 5 · 112 results" with previous / next. Hidden when everything fits on one page. */
+export function Pager({ page, pages, total, onPage, noun = 'result' }) {
+  if (!total) return null;
+  return (
+    <div className="row between wrap pager">
+      <span className="muted small">
+        {total} {noun}
+        {total === 1 ? '' : 's'}
+        {pages > 1 ? ` · page ${page} of ${pages}` : ''}
+      </span>
+      {pages > 1 ? (
+        <div className="row">
+          <button className="btn btn-sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>← Prev</button>
+          <button className="btn btn-sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>Next →</button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Server-side list state: search text + page + any filters → the API path.
+ *   const list = useListQuery('/admin/feedback', { status });
+ *   useResource(list.path) … <SearchBox onChange={list.setQ} /> … <Pager … onPage={list.setPage} />
+ * Changing the search or a filter goes back to page 1.
+ */
+export function useListQuery(base, filters = {}, limit = 25) {
+  const [q, setQState] = useState('');
+  const [page, setPage] = useState(1);
+  const filterKey = JSON.stringify(filters);
+  const [lastFilters, setLastFilters] = useState(filterKey);
+  if (filterKey !== lastFilters) {
+    setLastFilters(filterKey);
+    setPage(1);
+  }
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) if (v !== '' && v !== null && v !== undefined) params.set(k, String(v));
+  if (q) params.set('q', q);
+  params.set('limit', String(limit));
+  if (page > 1) params.set('page', String(page));
+  return {
+    path: `${base}?${params.toString()}`,
+    q,
+    page,
+    setPage,
+    setQ: (v) => {
+      setQState(v);
+      setPage(1);
+    },
+  };
+}
+
+/** In-browser search + paging for short lists (templates, packs…): no extra requests. */
+export function useClientList(rows, toText, pageSize = 25) {
+  const [q, setQState] = useState('');
+  const [page, setPage] = useState(1);
+  const needle = q.toLowerCase();
+  const filtered = (rows ?? []).filter((r) => !needle || toText(r).toLowerCase().includes(needle));
+  const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const current = Math.min(page, pages);
+  return {
+    items: filtered.slice((current - 1) * pageSize, current * pageSize),
+    total: filtered.length,
+    page: current,
+    pages,
+    setPage,
+    setQ: (v) => {
+      setQState(v);
+      setPage(1);
+    },
+  };
 }
 
 export function Pagination({ page, hasNext, onPage }) {

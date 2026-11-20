@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { Badge, DataTable, ErrorBox, PageHeader, Pagination } from '@/components/admin/kit';
+import { Badge, DataTable, ErrorBox, PageHeader, Pager, SearchBox, useListQuery } from '@/components/admin/kit';
 import { fmtDateTime } from '@/lib/format';
 import { useResource } from '@/lib/useApi';
 
@@ -11,15 +10,18 @@ const describe = (meta) =>
     .join(' · ');
 
 export default function AuditPage() {
-  const [page, setPage] = useState(1);
-  const { data, error, loading, reload } = useResource(`/admin/audit-logs?page=${page}`);
+  const list = useListQuery('/admin/audit-logs', {}, 50);
+  const { data, error, loading, reload } = useResource(list.path);
   return (
     <div className="stack" style={{ gap: 20 }}>
-      <PageHeader title="Audit log" subtitle="Every action taken by an admin, newest first." />
+      <PageHeader title="Audit log" subtitle="Every action taken by an admin, newest first.">
+        <SearchBox onChange={list.setQ} placeholder="Search admin, action, details…" width={300} />
+      </PageHeader>
       <ErrorBox error={error} onRetry={reload} />
       <DataTable
         loading={loading}
         rows={data?.logs}
+        empty={list.q ? `Nothing matches “${list.q}”.` : 'Nothing yet.'}
         columns={[
           { key: 'createdAt', title: 'When', render: (l) => <span className="muted" style={{ whiteSpace: 'nowrap' }}>{fmtDateTime(l.createdAt)}</span> },
           { key: 'actorEmail', title: 'Admin', render: (l) => l.actorEmail ?? '—' },
@@ -27,7 +29,7 @@ export default function AuditPage() {
           { key: 'meta', title: 'Details', render: (l) => <span className="small muted mono">{describe(l.meta)}</span> },
         ]}
       />
-      <Pagination page={page} hasNext={data?.logs?.length === 50} onPage={setPage} />
+      {data ? <Pager page={data.page} pages={data.pages} total={data.total} onPage={list.setPage} noun="entry" /> : null}
     </div>
   );
 }

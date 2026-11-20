@@ -5,6 +5,7 @@
  *   GET    /api/admin/security            blocked IPs, locked accounts, top failing IPs (24 h), recent events
  *   POST   /api/admin/security/ips        block an IP or range { target, reason?, hours? }  (no hours = until removed)
  *   DELETE /api/admin/security/ips/:id    unblock
+ *   GET    /api/admin/security/events     the security log (?q= email / IP / detail, ?kind=, ?page=)
  *
  * Emergency (locked yourself out?):  npm run unblock-ip -- <ip>   on the server.
  */
@@ -16,6 +17,7 @@ import { HttpError, isUuid, parse } from '../middleware/errors.js';
 import { audit } from '../services/audit.js';
 import { PERMISSIONS as P } from '../services/roles.js';
 import { normalizeIp, parseTarget, recordEvent, reloadBlockedIps, targetCovers } from '../services/security.js';
+import { listParams, pageInfo } from '../utils/listing.js';
 
 export const adminSecurityRouter = Router();
 const guard = requirePermission(P.SECURITY_MANAGE);
@@ -43,6 +45,22 @@ adminSecurityRouter.get('/security', guard, async (req, res) => {
     ),
   ]);
   res.json({ yourIp: normalizeIp(req.ip), blocked: blocked.rows, locked: locked.rows, failing: failing.rows, events: events.rows });
+});
+
+/** The security log, searchable and paged (it grows with every failed sign-in). */
+adminSecurityRouter.get('/security/events', guard, async (req, res) => {
+  const p = listParams(req.query);
+  const kind = typeof req.query.kind === 'string' && /^[a-z_]{2,40}$/.test(req.query.kind) ? req.query.kind : null;
+  const where = [];
+  const params = [];
+  if (kind) where.push(`kind = $${params.push(kind)}`);
+  if (p.like) where.push(`(email ILIKE $${params.push(p.like)} OR ip ILIKE $${params.length} OR detail ILIKE $${params.length})`);
+  const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const [{ rows }, { rows: total }] = await Promise.all([
+    query(`SELECT id, kind, ip, email, detail, created_at AS "createdAt" FROM security_events ${w} ORDER BY created_at DESC LIMIT ${p.limit} OFFSET ${p.offset}`, params),
+    query(`SELECT count(*)::int AS n FROM security_events ${w}`, params),
+  ]);
+  res.json({ events: rows, ...pageInfo(total[0].n, p) });
 });
 
 const blockSchema = z.object({
