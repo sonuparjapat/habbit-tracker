@@ -206,7 +206,7 @@ adminContentRouter.delete('/feedback/:id', requirePermission(P.FEEDBACK_MANAGE),
 /* -------------------------------- Analytics -------------------------------- */
 
 adminContentRouter.get('/analytics', requirePermission(P.DASHBOARD_VIEW), async (_req, res) => {
-  const [active, templates, feedback, achievements, retention, breaks] = await Promise.all([
+  const [active, templates, feedback, achievements, retention, breaks, invites, reviews] = await Promise.all([
     // Members who logged anything, per day, last 30 days
     query(`SELECT to_char(d, 'YYYY-MM-DD') AS date,
                   (SELECT count(DISTINCT user_id) FROM (
@@ -224,6 +224,10 @@ adminContentRouter.get('/analytics', requirePermission(P.DASHBOARD_VIEW), async 
              FROM members WHERE role = 3 AND created_at BETWEEN now() - interval '37 days' AND now() - interval '8 days'`),
     // Which rules members break most (last 30 days) — shows where people struggle
     query(`SELECT rule, count(*) AS n FROM rule_breaks WHERE break_date > current_date - 30 GROUP BY rule ORDER BY n DESC LIMIT 12`),
+    // Invites: how many members joined through a friend (verified only) and how many members invited someone
+    query(`SELECT count(*) FILTER (WHERE referred_by IS NOT NULL AND email_verified_at IS NOT NULL)::int AS joined,
+                  count(DISTINCT referred_by)::int AS inviters FROM members`),
+    query(`SELECT count(*)::int AS n FROM weekly_reviews WHERE created_at > now() - interval '30 days'`),
   ]);
   const r = retention.rows[0];
   res.json({
@@ -232,6 +236,8 @@ adminContentRouter.get('/analytics', requirePermission(P.DASHBOARD_VIEW), async 
     feedback: feedback.rows[0],
     achievements: achievements.rows,
     ruleBreaks: breaks.rows.map((b) => ({ rule: b.rule, label: ruleLabel(b.rule), n: b.n })),
+    invites: invites.rows[0],
+    weeklyReviews30d: reviews.rows[0].n,
     retention: { cohort: r.cohort, retained: r.retained, rate: r.cohort ? Math.round((r.retained / r.cohort) * 100) : null },
   });
 });

@@ -82,6 +82,11 @@ export default function DashboardPage() {
         <StatCard icon="📈" accent="blue" label="Trades · Expenses" value={`${activity.trades} · ${activity.expenses}`} />
         <StatCard icon="🛡️" accent="red" label="Rule breaks recorded" value={activity.rule_breaks} sub={`${u.marketing} members opted into emails`} />
       </div>
+
+      <div className="grid grid-4">
+        <StatCard icon="🤝" accent="green" label="Joined via invites" value={an?.invites?.joined ?? '—'} sub={an ? `${an.invites.inviters} members invited someone` : ''} />
+        <StatCard icon="🗓️" accent="violet" label="Weekly reviews · 30 days" value={an?.weeklyReviews30d ?? '—'} sub="members reflecting on their week" />
+      </div>
     </div>
   );
 }

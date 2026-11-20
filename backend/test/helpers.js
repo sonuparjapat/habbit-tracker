@@ -51,8 +51,11 @@ export async function register(name = 'Tester', extra = {}) {
   return { token: r.body.token, user: r.body.user, email, password };
 }
 
+let logins = 0;
+/** Sign in. Each call comes from its own (simulated) network — the real limit is 10 tries per account per IP in 15 min. */
 export async function login(email, password) {
-  const r = await api('POST', '/auth/login', { email, password });
+  logins++;
+  const r = await apiFrom(`100.65.${Math.floor(logins / 250)}.${(logins % 250) + 1}`, 'POST', '/auth/login', { email, password });
   if (r.status !== 200) throw new Error(`login failed for ${email}: ${JSON.stringify(r.body)}`);
   return r.body; // { token, user }
 }

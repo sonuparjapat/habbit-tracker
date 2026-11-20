@@ -19,6 +19,10 @@ export const PUSH_LINKS = {
   '/achievements': 'Level & badges',
   '/tracker/new': 'New tracker',
   '/insights': 'Insights',
+  '/review': 'Weekly review',
+  '/focus': 'Focus timer',
+  '/packs': 'Starter packs',
+  '/invite': 'Invite friends',
   '/feedback': 'Send feedback',
 };
 

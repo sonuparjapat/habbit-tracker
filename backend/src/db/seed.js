@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { config } from '../config.js';
-import { DEFAULT_TEMPLATES, TEMPLATE_ORDER } from '../services/catalog.js';
+import { DEFAULT_STARTER_PACKS, DEFAULT_TEMPLATES, TEMPLATE_ORDER } from '../services/catalog.js';
 import { ROLE_LABELS, ROLES } from '../services/roles.js';
 import { query } from './pool.js';
 
@@ -16,6 +16,15 @@ export async function seed({ log = console.log } = {}) {
     inserted += rowCount;
   }
   if (inserted) log(`db: seeded ${inserted} templates`);
+
+  // Starter packs (only missing ones — never overwrites admin edits)
+  for (const [i, p] of DEFAULT_STARTER_PACKS.entries()) {
+    await query(
+      `INSERT INTO starter_packs (slug, name, emoji, description, template_slugs, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (slug) DO NOTHING`,
+      [p.slug, p.name, p.emoji, p.description, p.templateSlugs, i],
+    );
+  }
 
   const { rows } = await query(`SELECT count(*) AS n FROM members WHERE role = $1`, [ROLES.SUPER_ADMIN]);
   if (rows[0].n === 0) log('admin: no super admin yet — create one with: npm run create-admin -- you@example.com "strong-password"');

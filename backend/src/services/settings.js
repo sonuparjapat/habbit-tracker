@@ -43,6 +43,18 @@ export const SETTINGS = {
   feature_gamification: { group: 'Features', label: 'XP, levels & badges', type: 'boolean', default: true, public: true },
   ads_enabled: { group: 'Features', label: 'Show ads', type: 'boolean', default: false, public: true, description: 'Only works once AdMob is set up in the app build.' },
 
+  // Streak shields (see services/habitStats.js)
+  streak_shields_enabled: {
+    group: 'Streak shields',
+    label: 'Streak shields',
+    type: 'boolean',
+    default: true,
+    public: true,
+    description: 'Members earn a shield for keeping a streak; a missed day uses one instead of resetting the streak.',
+  },
+  shield_every_days: { group: 'Streak shields', label: 'Earn a shield every … days in a row', type: 'number', default: 7, min: 2, max: 60, public: true },
+  shield_max: { group: 'Streak shields', label: 'Most shields a member can hold (per habit)', type: 'number', default: 3, min: 1, max: 10, public: true },
+
   // Security (see services/security.js)
   security_lock_after: {
     group: 'Security',
@@ -88,6 +100,14 @@ export const SETTINGS = {
   nudge_email_enabled: { group: 'Evening check-in', label: 'Also send email nudges', type: 'boolean', default: true, public: false, description: 'Only to verified emails of members who switched email nudges on.' },
 
   // Look & feel
+  hindi_enabled: {
+    group: 'Look & feel',
+    label: 'Hindi language (हिन्दी)',
+    type: 'boolean',
+    default: false,
+    public: true,
+    description: 'Off: everyone sees English and the language choice is hidden. On: members can pick हिन्दी on the first screen and in Profile.',
+  },
   default_theme: {
     group: 'Look & feel',
     label: 'Default app theme',
@@ -130,6 +150,18 @@ export const SETTINGS = {
   xp_expense: { group: 'Game', label: 'XP per expense logged within budget', type: 'number', default: 3, public: true },
   xp_rule_break: { group: 'Game', label: 'XP lost per rule break', type: 'number', default: 15, public: true },
   xp_achievement: { group: 'Game', label: 'XP per achievement unlocked', type: 'number', default: 50, public: true },
+  xp_weekly_review: { group: 'Game', label: 'XP per weekly review written', type: 'number', default: 20, public: true },
+  xp_referral: { group: 'Game', label: 'XP per friend who joins with your invite', type: 'number', default: 100, public: true },
+  weekly_review_enabled: { group: 'Features', label: 'Sunday weekly review', type: 'boolean', default: true, public: true },
+  rating_prompt_enabled: {
+    group: 'Features',
+    label: 'Ask happy members to rate the app',
+    type: 'boolean',
+    default: true,
+    public: true,
+    description: 'Shown at most once every 2 months, only right after a win (a 7-day streak, a level-up, a boss beaten).',
+  },
+  focus_timer_enabled: { group: 'Features', label: 'Focus timer', type: 'boolean', default: true, public: true },
 
   // Limits
   max_trackers_per_member: { group: 'Limits', label: 'Max trackers per member', type: 'number', default: 50, public: false, min: 1, max: 500 },

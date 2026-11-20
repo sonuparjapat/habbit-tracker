@@ -8,7 +8,7 @@ export const USER_FIELDS = `id, email, name, role, status, timezone, currency, i
   marketing_opt_in AS "marketingOptIn", terms_version AS "termsVersion",
   (email_verified_at IS NOT NULL) AS "emailVerified", created_at AS "createdAt",
   nudge_push AS "nudgePush", nudge_email AS "nudgeEmail", (push_token IS NOT NULL) AS "hasPushToken", push_news AS "pushNews",
-  (locked_at IS NOT NULL) AS "locked"`;
+  (locked_at IS NOT NULL) AS "locked", referral_code AS "referralCode"`;
 
 export function signToken(user) {
   return jwt.sign({ sub: user.id, tv: user.token_version ?? 0 }, config.jwtSecret, { expiresIn: config.jwtExpiresIn, algorithm: 'HS256' });

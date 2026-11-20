@@ -37,13 +37,17 @@ const NAV = [
   { href: '/admin/feedback', label: 'Feedback', icon: '✉', permission: P.FEEDBACK_MANAGE, countKey: 'feedback' },
   { group: 'Content' },
   { href: '/admin/templates', label: 'Templates', icon: '▦', permission: P.TEMPLATES_MANAGE },
+  { href: '/admin/packs', label: 'Starter packs', icon: '🎁', permission: P.TEMPLATES_MANAGE },
   { href: '/admin/announcements', label: 'Announcements', icon: '📣', permission: P.CONTENT_MANAGE },
   { href: '/admin/notifications', label: 'Notifications', icon: '🔔', permission: P.CONTENT_MANAGE },
   { group: 'Configuration' },
   { href: '/admin/settings', label: 'App settings', icon: '⚙', permission: P.SETTINGS_MANAGE },
   { href: '/admin/security', label: 'Security', icon: '🛡', permission: P.SECURITY_MANAGE },
   { href: '/admin/system', label: 'System', icon: '◎', permission: P.SYSTEM_VIEW },
+  { href: '/admin/sync', label: 'Offline sync', icon: '🔄', permission: P.SYSTEM_VIEW },
   { href: '/admin/audit', label: 'Audit log', icon: '☰', permission: P.AUDIT_VIEW },
+  { group: 'Help' },
+  { href: '/admin/docs', label: 'Help & docs', icon: '📖', permission: P.DASHBOARD_VIEW },
 ];
 
 const isActive = (href, pathname) => (href === '/admin' ? pathname === '/admin' : pathname.startsWith(href));

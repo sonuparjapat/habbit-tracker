@@ -1,7 +1,8 @@
 import { query } from '../db/pool.js';
 import { HttpError, isUuid } from '../middleware/errors.js';
 import { addDays, dateIn, todayIn, weekdayOf } from '../utils/date.js';
-import { habitStreaks } from './habitStats.js';
+import { habitStreaks, shieldRules } from './habitStats.js';
+import { getSettings } from './settings.js';
 import { computeDayStatus, computeSpendStatus, loadTradingContext, money } from './rules.js';
 import { parseConfig } from './trackerConfig.js';
 import { computeStreaks, tradingAlerts } from './tradingStats.js';
@@ -110,6 +111,15 @@ export async function tradingToday(t, user) {
   };
 }
 
+/** The most recent scheduled day before `date` (or null). */
+function lastScheduledBefore(cfg, date) {
+  for (let i = 1; i <= 7; i++) {
+    const d = addDays(date, -i);
+    if (cfg.days.includes(weekdayOf(d))) return d;
+  }
+  return null;
+}
+
 export async function habitToday(t, user) {
   const cfg = parseConfig('habit', t.config);
   const today = todayIn(user.timezone);
@@ -119,7 +129,8 @@ export async function habitToday(t, user) {
   );
   const done = new Set(rows.filter((r) => r.completed).map((r) => r.entry_date));
   const todayRow = rows.find((r) => r.entry_date === today);
-  const streak = habitStreaks(cfg, done, trackingStart(t, user.timezone, rows.map((r) => r.entry_date)), today);
+  const settings = await getSettings();
+  const streak = habitStreaks(cfg, done, trackingStart(t, user.timezone, rows.map((r) => r.entry_date)), today, shieldRules(settings));
   const scheduledToday = cfg.days.includes(weekdayOf(today));
   const completedToday = Boolean(todayRow?.completed);
 
@@ -130,6 +141,14 @@ export async function habitToday(t, user) {
       level: 'warning',
       title: `🔥 ${streak.current}-day streak at risk — ${t.name}`,
       message: cfg.kind === 'limit' ? 'Log today before midnight to keep it.' : 'Check in before midnight or it resets to zero.',
+    });
+  // A shield covered the last scheduled day: celebrate it, so the member knows it exists
+  const yesterdaySaved = streak.shieldedDays.at(-1) === lastScheduledBefore(cfg, today);
+  if (yesterdaySaved && streak.current > 0)
+    alerts.push({
+      level: 'success',
+      title: `🛡️ A streak shield saved your ${streak.current}-day streak — ${t.name}`,
+      message: `You missed a day, but your streak lives on. Earn shields by keeping ${settings.shield_every_days} days in a row.`,
     });
   if (streak.lost >= 3 && !completedToday)
     alerts.push({
@@ -148,6 +167,7 @@ export async function habitToday(t, user) {
     currentStreak: streak.current,
     bestStreak: streak.best,
     lostStreak: streak.lost,
+    shields: streak.shields,
     alerts,
   };
 }

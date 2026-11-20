@@ -7,42 +7,61 @@ export function isComplete(cfg, value, completedFlag, hasEntry = true) {
   return value >= cfg.target;
 }
 
+/** Streak shields switched off (the admin can set them in App settings → Streak shields). */
+export const NO_SHIELDS = { every: 0, max: 0 };
+
 /**
  * Streaks count consecutive *scheduled* days. Unscheduled days are skipped.
  * Today never breaks a streak until it's over.
+ *
+ * Streak shields: every `shields.every` days done in a row earns a shield (keeping at most
+ * `shields.max`). A missed day uses one up instead of breaking the streak — the streak survives
+ * (that day doesn't add to it). Worked out from the check-in history each time, never stored.
+ *
+ * Returns { current, best, lost, shields (left now), shieldedDays (dates a shield covered) }.
  */
-export function habitStreaks(cfg, doneDates, startDate, today) {
+export function habitStreaks(cfg, doneDates, startDate, today, shields = NO_SHIELDS) {
   const scheduled = (d) => cfg.days.includes(weekdayOf(d));
-  let current = 0;
-  for (let d = today; d >= startDate; d = addDays(d, -1)) {
-    if (!scheduled(d)) continue;
-    if (doneDates.has(d)) current++;
-    else if (d === today) continue;
-    else break;
-  }
+  let run = 0; // current streak while walking forward
   let best = 0;
-  let run = 0;
+  let left = 0; // shields in hand
+  let towardsShield = 0; // days done since the last shield was earned
+  let lastBreak = null; // { date, length } of the most recent streak that ended
+  const shieldedDays = [];
+
   for (const d of eachDay(startDate, today)) {
     if (!scheduled(d)) continue;
-    if (doneDates.has(d)) best = Math.max(best, ++run);
-    else if (d !== today) run = 0;
-  }
-
-  // A streak that ended on the most recent scheduled day before today (missed it)
-  let lost = 0;
-  let prev = addDays(today, -1);
-  while (prev >= startDate && !scheduled(prev)) prev = addDays(prev, -1);
-  if (prev >= startDate && !doneDates.has(prev)) {
-    for (let d = addDays(prev, -1); d >= startDate; d = addDays(d, -1)) {
-      if (!scheduled(d)) continue;
-      if (doneDates.has(d)) lost++;
-      else break;
+    if (doneDates.has(d)) {
+      best = Math.max(best, ++run);
+      if (shields.every > 0 && ++towardsShield >= shields.every) {
+        left = Math.min(shields.max, left + 1);
+        towardsShield = 0;
+      }
+    } else if (d === today) {
+      continue; // today isn't over yet
+    } else if (left > 0) {
+      left--; // a shield saves the streak
+      shieldedDays.push(d);
+    } else {
+      if (run > 0) lastBreak = { date: d, length: run };
+      run = 0;
+      towardsShield = 0;
     }
   }
-  return { current, best, lost };
+
+  // A streak that ended on the most recent scheduled day before today (missed it, no shield)
+  let prev = addDays(today, -1);
+  while (prev >= startDate && !scheduled(prev)) prev = addDays(prev, -1);
+  const lost = lastBreak && lastBreak.date === prev ? lastBreak.length : 0;
+
+  return { current: run, best, lost, shields: left, shieldedDays };
 }
 
-export function computeHabitStats(cfg, range, createdDate, today, entries, allDoneDates) {
+/** The admin's shield rules from settings. */
+export const shieldRules = (settings) =>
+  settings.streak_shields_enabled ? { every: settings.shield_every_days, max: settings.shield_max } : NO_SHIELDS;
+
+export function computeHabitStats(cfg, range, createdDate, today, entries, allDoneDates, shields = NO_SHIELDS) {
   const from = range.from < createdDate ? createdDate : range.from;
   const to = range.to > today ? today : range.to;
   const byDate = new Map(entries.map((e) => [e.entry_date, e]));
@@ -71,7 +90,7 @@ export function computeHabitStats(cfg, range, createdDate, today, entries, allDo
 
   const moods = entries.filter((e) => e.mood != null).map((e) => e.mood);
   const values = entries.map((e) => Number(e.value || 0));
-  const streaks = habitStreaks(cfg, allDoneDates, createdDate, today);
+  const streaks = habitStreaks(cfg, allDoneDates, createdDate, today, shields);
   const rate = scheduledDays ? Math.round((completedDays / scheduledDays) * 100) : null;
 
   const insights = [];
@@ -89,6 +108,7 @@ export function computeHabitStats(cfg, range, createdDate, today, entries, allDo
     range: { from, to },
     currentStreak: streaks.current,
     bestStreak: streaks.best,
+    shields: streaks.shields,
     completionRate: rate,
     completedDays,
     scheduledDays,

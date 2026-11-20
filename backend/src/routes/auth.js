@@ -15,12 +15,14 @@
  *   PATCH  /api/auth/me                    edit name, timezone, currency, interests, evening check-in…
  *   PUT    /api/auth/me/push-token         save (or clear, with null) this phone's push token
  *   POST   /api/auth/accept-terms          accept the latest terms
+ *   GET    /api/auth/me/invites            my invite code and how many friends joined with it
  *   GET    /api/auth/me/export             download all my data (JSON)
  *   DELETE /api/auth/me                    delete my account and all its data
  *
  * Rate limits are per account / per email (not per IP), so people sharing a mobile network
  * don't block each other.
  */
+import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
@@ -109,7 +111,20 @@ const registerSchema = z.object({
   timezone: timezone.optional(),
   currency: currency.optional(),
   interests: interests.default([]),
+  /** A friend's invite code (optional) */
+  inviteCode: z.string().trim().toUpperCase().max(20).optional(),
 });
+
+/** A short code people can type: no 0/O or 1/I to mix up. */
+const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+async function newReferralCode() {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = Array.from(crypto.randomBytes(8), (b) => CODE_LETTERS[b % CODE_LETTERS.length]).join('');
+    const { rows } = await query('SELECT 1 FROM members WHERE referral_code = $1', [code]);
+    if (!rows[0]) return code;
+  }
+  throw new Error('could not create an invite code');
+}
 
 authRouter.post('/register', ipCeiling, signupPerIp, async (req, res) => {
   const settings = await getSettings();
@@ -117,14 +132,23 @@ authRouter.post('/register', ipCeiling, signupPerIp, async (req, res) => {
   if (!settings.signups_enabled) throw new HttpError(403, 'New sign-ups are paused right now. Please try again later.', 'SIGNUPS_CLOSED');
   const body = parse(registerSchema, req.body);
   assertStrongPassword(body.password, body.email);
+
+  // A friend's invite code must be real (a typo would otherwise silently lose the reward)
+  let referredBy = null;
+  if (body.inviteCode) {
+    const { rows } = await query("SELECT id FROM members WHERE referral_code = $1 AND status = 'active'", [body.inviteCode]);
+    if (!rows[0]) throw new HttpError(400, 'That invite code doesn’t exist. Check it, or leave it empty.', 'INVITE_INVALID');
+    referredBy = rows[0].id;
+  }
+  const referralCode = await newReferralCode();
   const hash = await bcrypt.hash(body.password, 12);
   let user;
   try {
     user = await withTransaction(async (db) => {
       const { rows } = await db.query(
-        `INSERT INTO members (email, password_hash, name, timezone, currency, terms_version, marketing_opt_in, interests)
-         VALUES ($1, $2, $3, COALESCE($4, 'UTC'), COALESCE($5, 'USD'), $6, $7, $8) RETURNING id`,
-        [body.email, hash, body.name, body.timezone ?? null, body.currency ?? null, config.termsVersion, body.marketingOptIn, body.interests],
+        `INSERT INTO members (email, password_hash, name, timezone, currency, terms_version, marketing_opt_in, interests, referral_code, referred_by)
+         VALUES ($1, $2, $3, COALESCE($4, 'UTC'), COALESCE($5, 'USD'), $6, $7, $8, $9, $10) RETURNING id`,
+        [body.email, hash, body.name, body.timezone ?? null, body.currency ?? null, config.termsVersion, body.marketingOptIn, body.interests, referralCode, referredBy],
       );
       const id = rows[0].id;
       await db.query(
@@ -326,6 +350,23 @@ authRouter.patch('/me', requireAuth, async (req, res) => {
   if (body.marketingOptIn !== undefined && body.marketingOptIn !== req.user.marketingOptIn)
     await query(`INSERT INTO consents (user_id, kind, granted) VALUES ($1, 'marketing', $2)`, [req.user.id, body.marketingOptIn]);
   res.json({ user: publicUser(stripTv(await loadUser(req.user.id))) });
+});
+
+/** GET /api/auth/me/invites — friends count once they verify their email (stops fake sign-ups). */
+authRouter.get('/me/invites', requireAuth, async (req, res) => {
+  const { rows } = await query(
+    `SELECT count(*) FILTER (WHERE email_verified_at IS NOT NULL)::int AS joined, count(*)::int AS signed_up
+       FROM members WHERE referred_by = $1`,
+    [req.user.id],
+  );
+  // Accounts made by `npm run create-admin` start without a code
+  let code = req.user.referralCode;
+  if (!code) {
+    code = await newReferralCode();
+    await query('UPDATE members SET referral_code = $2 WHERE id = $1 AND referral_code IS NULL', [req.user.id, code]);
+  }
+  const settings = await getSettings();
+  res.json({ code, joined: rows[0].joined, pending: rows[0].signed_up - rows[0].joined, xpPerFriend: settings.xp_referral });
 });
 
 /** PUT /api/auth/me/push-token — the app sends its Expo push token (or null when signing out). */

@@ -4,6 +4,7 @@
  *
  *   GET    /api/trackers                     my trackers (?archived=true for archived ones)
  *   POST   /api/trackers                     create a tracker
+ *   POST   /api/trackers/from-pack           create every tracker in a starter pack { slug }
  *   GET    /api/trackers/:id                 one tracker
  *   PATCH  /api/trackers/:id                 rename, recolour, archive, reorder, change settings
  *   DELETE /api/trackers/:id                 delete a tracker and everything in it
@@ -19,9 +20,11 @@ import { z } from 'zod';
 import { query } from '../db/pool.js';
 import { HttpError, parse } from '../middleware/errors.js';
 import { CATEGORY_KEYS } from '../services/catalog.js';
-import { computeHabitStats, isComplete } from '../services/habitStats.js';
+import { deleteEntry, upsertEntry } from '../services/entries.js';
+import { computeHabitStats, shieldRules } from '../services/habitStats.js';
 import { ruleLabel } from '../services/rules.js';
 import { getSettings } from '../services/settings.js';
+import { applyPack } from '../services/starterPacks.js';
 import { computeSpendingStats } from '../services/spendingStats.js';
 import { parseConfig } from '../services/trackerConfig.js';
 import {
@@ -36,7 +39,7 @@ import {
 } from '../services/trackers.js';
 import { computeTradingStats } from '../services/tradingStats.js';
 import { resolveRange, todayIn } from '../utils/date.js';
-import { dateStr, hexColor } from '../utils/validation.js';
+import { hexColor } from '../utils/validation.js';
 
 export const trackersRouter = Router();
 
@@ -108,6 +111,13 @@ trackersRouter.post('/', async (req, res) => {
   res.status(201).json({ tracker: serializeTracker(rows[0]) });
 });
 
+/** POST /api/trackers/from-pack — one tap, several trackers (skips ones the member already has). */
+trackersRouter.post('/from-pack', async (req, res) => {
+  const { slug } = parse(z.object({ slug: z.string().trim().min(1).max(60) }), req.body);
+  const { created, skipped } = await applyPack(req.user.id, slug);
+  res.status(201).json({ trackers: created.map(serializeTracker), skipped });
+});
+
 /** GET /api/trackers/:id — one tracker. */
 trackersRouter.get('/:id', async (req, res) => {
   res.json({ tracker: serializeTracker(await getTracker(req.user.id, req.params.id)) });
@@ -170,64 +180,17 @@ trackersRouter.get('/:id/entries', async (req, res) => {
   res.json({ range, entries: rows });
 });
 
-const entrySchema = z.object({
-  value: z.number().min(0).max(1e7).optional(),
-  completed: z.boolean().optional(),
-  mood: z.number().int().min(1).max(5).nullable().optional(),
-  note: z.string().max(4000).nullable().optional(),
-  reflection: z
-    .object({
-      wentWell: z.string().max(2000).optional(),
-      mistakes: z.string().max(2000).optional(),
-      lesson: z.string().max(2000).optional(),
-      followedPlan: z.boolean().optional(),
-      marketView: z.string().max(2000).optional(),
-    })
-    .optional(),
-});
-
 /**
  * PUT /api/trackers/:id/entries/:date — check in for a day (create or update).
- * Only the fields sent are changed; the rest keep their saved value.
+ * Only the fields sent are changed; the rest keep their saved value. (Logic: services/entries.js)
  */
 trackersRouter.put('/:id/entries/:date', async (req, res) => {
-  const t = await getTracker(req.user.id, req.params.id);
-  const date = parse(dateStr, req.params.date);
-  if (date > todayIn(req.user.timezone)) throw new HttpError(400, 'Cannot log a future day', 'FUTURE_DATE');
-  const body = parse(entrySchema, req.body);
-
-  const { rows: existingRows } = await query(
-    'SELECT value, completed, mood, note, reflection FROM daily_entries WHERE tracker_id = $1 AND entry_date = $2',
-    [t.id, date],
-  );
-  const existing = existingRows[0] ?? { value: 0, completed: false, mood: null, note: null, reflection: {} };
-  const value = body.value ?? existing.value;
-  const reflection = body.reflection ? { ...existing.reflection, ...body.reflection } : existing.reflection;
-  const mood = body.mood === undefined ? existing.mood : body.mood;
-  const note = body.note === undefined ? existing.note : body.note;
-
-  // Is the day "done"? Habits: decided by the goal (e.g. 8 glasses ≥ 8). Journals: something was written.
-  let completed = body.completed ?? existing.completed;
-  if (t.type === 'habit') completed = isComplete(parseConfig('habit', t.config), value, completed, true);
-  else completed = Boolean(reflection.wentWell || reflection.mistakes || reflection.lesson || body.completed);
-
-  const { rows } = await query(
-    `INSERT INTO daily_entries (tracker_id, user_id, entry_date, value, completed, mood, note, reflection)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     ON CONFLICT (tracker_id, entry_date) DO UPDATE SET
-       value = EXCLUDED.value, completed = EXCLUDED.completed, mood = EXCLUDED.mood,
-       note = EXCLUDED.note, reflection = EXCLUDED.reflection, updated_at = now()
-     RETURNING entry_date AS date, value, completed, mood, note, reflection`,
-    [t.id, req.user.id, date, value, completed, mood, note, JSON.stringify(reflection)],
-  );
-  res.json({ entry: rows[0] });
+  res.json({ entry: await upsertEntry(req.user, req.params.id, req.params.date, req.body) });
 });
 
 /** DELETE /api/trackers/:id/entries/:date — undo a check-in for a day. */
 trackersRouter.delete('/:id/entries/:date', async (req, res) => {
-  const t = await getTracker(req.user.id, req.params.id);
-  const date = parse(dateStr, req.params.date);
-  await query('DELETE FROM daily_entries WHERE tracker_id = $1 AND entry_date = $2', [t.id, date]);
+  await deleteEntry(req.user, req.params.id, req.params.date);
   res.status(204).end();
 });
 
@@ -271,7 +234,8 @@ trackersRouter.get('/:id/stats', async (req, res) => {
     query('SELECT entry_date FROM daily_entries WHERE tracker_id = $1 AND completed', [t.id]),
   ]);
   const doneDates = done.map((d) => d.entry_date);
-  res.json(computeHabitStats(cfg, range, trackingStart(t, req.user.timezone, doneDates), today, entries, new Set(doneDates)));
+  const settings = await getSettings();
+  res.json(computeHabitStats(cfg, range, trackingStart(t, req.user.timezone, doneDates), today, entries, new Set(doneDates), shieldRules(settings)));
 });
 
 /** GET /api/trackers/:id/rule-breaks?from=&to= — every rule broken, newest first, with the amount involved. */

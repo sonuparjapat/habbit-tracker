@@ -17,6 +17,7 @@ test('public: lists, templates and app config', async () => {
   assert.equal(r.body.settings.signups_enabled, true);
   assert.ok(Array.isArray(r.body.settings.daily_quotes));
   assert.equal(r.body.settings.default_theme, 'dark');
+  assert.equal(r.body.settings.hindi_enabled, false, 'Hindi is off until the admin switches it on');
   assert.equal(r.body.settings.tour_enabled, true);
   assert.equal(r.body.settings.tour_steps[0].split('|').length, 3, 'tour steps are "emoji | title | text"');
   assert.ok(!('max_trackers_per_member' in r.body.settings), 'private settings are not public');

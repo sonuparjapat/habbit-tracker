@@ -16,6 +16,10 @@
  *   POST   /api/admin/templates                 add a template
  *   PATCH  /api/admin/templates/:id             edit a template
  *   DELETE /api/admin/templates/:id             delete a template
+ *   GET    /api/admin/starter-packs             starter packs (bundles of templates)
+ *   POST   /api/admin/starter-packs             add a pack
+ *   PATCH  /api/admin/starter-packs/:id         edit / show / hide a pack
+ *   DELETE /api/admin/starter-packs/:id         delete (built-in packs are hidden instead)
  *   GET    /api/admin/audit-logs                who did what, when
  */
 import { Router } from 'express';
@@ -28,6 +32,7 @@ import { CATEGORY_KEYS } from '../services/catalog.js';
 import { can, PERMISSIONS, ROLE_NAMES, ROLES } from '../services/roles.js';
 import { sendAccountStatusEmail } from '../services/email.js';
 import { lockAccount, unlockAccount } from '../services/security.js';
+import { isDefaultPack, PACK_FIELDS } from '../services/starterPacks.js';
 import { parseConfig } from '../services/trackerConfig.js';
 
 export const adminRouter = Router();
@@ -296,6 +301,78 @@ adminRouter.delete('/templates/:id', requirePermission(P.TEMPLATES_MANAGE), asyn
   const { rows } = await query('DELETE FROM templates WHERE id = $1 RETURNING slug', [req.params.id]);
   if (!rows[0]) throw new HttpError(404, 'Template not found', 'NOT_FOUND');
   await audit(req, 'template.delete', 'template', req.params.id, { slug: rows[0].slug });
+  res.status(204).end();
+});
+
+/* ------------------------------- Starter packs ------------------------------- */
+
+const packSchema = z.object({
+  slug: z.string().trim().regex(/^[a-z0-9-]{2,60}$/, 'Use lowercase letters, numbers and dashes'),
+  name: z.string().trim().min(1).max(60),
+  emoji: z.string().trim().min(1).max(8).default('✨'),
+  description: z.string().trim().max(200).default(''),
+  templateSlugs: z.array(z.string().trim().min(1).max(60)).min(1, 'Pick at least one template').max(10),
+  sortOrder: z.number().int().default(0),
+  active: z.boolean().default(true),
+});
+
+/** Every template slug in a pack must exist. */
+async function assertTemplatesExist(slugs) {
+  const { rows } = await query('SELECT slug FROM templates WHERE slug = ANY($1::text[])', [slugs]);
+  const missing = slugs.filter((s) => !rows.some((r) => r.slug === s));
+  if (missing.length) throw new HttpError(400, `Unknown template: ${missing.join(', ')}`, 'VALIDATION');
+}
+
+adminRouter.get('/starter-packs', requirePermission(P.TEMPLATES_MANAGE), async (_req, res) => {
+  const [{ rows: packs }, { rows: used }] = await Promise.all([
+    query(`SELECT ${PACK_FIELDS} FROM starter_packs ORDER BY sort_order, name`),
+    // How often each template was created — a rough "how popular is this pack" signal
+    query(`SELECT template_slug AS slug, count(*)::int AS n FROM trackers WHERE template_slug IS NOT NULL GROUP BY 1`),
+  ]);
+  const usage = Object.fromEntries(used.map((r) => [r.slug, r.n]));
+  res.json({ packs: packs.map((p) => ({ ...p, builtIn: isDefaultPack(p.slug) })), usage });
+});
+
+adminRouter.post('/starter-packs', requirePermission(P.TEMPLATES_MANAGE), async (req, res) => {
+  const body = parse(packSchema, req.body);
+  await assertTemplatesExist(body.templateSlugs);
+  try {
+    const { rows } = await query(
+      `INSERT INTO starter_packs (slug, name, emoji, description, template_slugs, sort_order, active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${PACK_FIELDS}`,
+      [body.slug, body.name, body.emoji, body.description, body.templateSlugs, body.sortOrder, body.active],
+    );
+    await audit(req, 'pack.create', 'starter_pack', rows[0].id, { slug: body.slug });
+    res.status(201).json({ pack: rows[0] });
+  } catch (err) {
+    if (err?.code === '23505') throw new HttpError(409, 'A pack with this slug already exists', 'DUPLICATE');
+    throw err;
+  }
+});
+
+adminRouter.patch('/starter-packs/:id', requirePermission(P.TEMPLATES_MANAGE), async (req, res) => {
+  if (!isUuid(req.params.id)) throw new HttpError(404, 'Pack not found', 'NOT_FOUND');
+  const body = parse(packSchema.partial().omit({ slug: true }), req.body);
+  if (body.templateSlugs) await assertTemplatesExist(body.templateSlugs);
+  const { rows } = await query(
+    `UPDATE starter_packs SET name = COALESCE($2, name), emoji = COALESCE($3, emoji), description = COALESCE($4, description),
+       template_slugs = COALESCE($5, template_slugs), sort_order = COALESCE($6, sort_order), active = COALESCE($7, active), updated_at = now()
+     WHERE id = $1 RETURNING ${PACK_FIELDS}`,
+    [req.params.id, body.name ?? null, body.emoji ?? null, body.description ?? null, body.templateSlugs ?? null, body.sortOrder ?? null, body.active ?? null],
+  );
+  if (!rows[0]) throw new HttpError(404, 'Pack not found', 'NOT_FOUND');
+  await audit(req, 'pack.update', 'starter_pack', rows[0].id, { slug: rows[0].slug, ...body });
+  res.json({ pack: rows[0] });
+});
+
+adminRouter.delete('/starter-packs/:id', requirePermission(P.TEMPLATES_MANAGE), async (req, res) => {
+  if (!isUuid(req.params.id)) throw new HttpError(404, 'Pack not found', 'NOT_FOUND');
+  const { rows } = await query('SELECT slug FROM starter_packs WHERE id = $1', [req.params.id]);
+  if (!rows[0]) throw new HttpError(404, 'Pack not found', 'NOT_FOUND');
+  // Built-in packs would be re-created on the next start, so they are hidden instead of deleted
+  if (isDefaultPack(rows[0].slug)) await query('UPDATE starter_packs SET active = false, updated_at = now() WHERE id = $1', [req.params.id]);
+  else await query('DELETE FROM starter_packs WHERE id = $1', [req.params.id]);
+  await audit(req, 'pack.delete', 'starter_pack', req.params.id, { slug: rows[0].slug });
   res.status(204).end();
 });
 

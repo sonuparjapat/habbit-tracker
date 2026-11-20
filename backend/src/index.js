@@ -4,6 +4,7 @@ import { migrate } from './db/migrate.js';
 import { pool } from './db/pool.js';
 import { seed } from './db/seed.js';
 import { runNudges } from './services/nudges.js';
+import { cleanupOps, retryDueOps } from './services/sync.js';
 
 async function main() {
   // Create / upgrade all tables, then seed defaults. Safe on every start and every deploy.
@@ -29,10 +30,19 @@ async function main() {
   const nudgeTimer = setInterval(nudge, 5 * 60 * 1000);
   nudgeTimer.unref();
 
+  // Offline sync: retry changes that failed for a temporary reason (every 2 minutes), tidy old ones daily
+  const retrySync = () => retryDueOps().catch((err) => console.error('sync retry failed:', err.message));
+  const syncTimer = setInterval(retrySync, 2 * 60 * 1000);
+  syncTimer.unref();
+  const tidyTimer = setInterval(() => cleanupOps().catch(() => {}), 24 * 60 * 60 * 1000);
+  tidyTimer.unref();
+
   const shutdown = (signal) => {
     console.log(`${signal} received, shutting down`);
     clearInterval(cleanupTimer);
     clearInterval(nudgeTimer);
+    clearInterval(syncTimer);
+    clearInterval(tidyTimer);
     server.close(() => pool.end().then(() => process.exit(0)));
     setTimeout(() => process.exit(1), 10_000).unref();
   };

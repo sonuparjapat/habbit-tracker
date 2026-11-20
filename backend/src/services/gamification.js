@@ -49,6 +49,8 @@ export const ACHIEVEMENTS = [
   { key: 'checkins_365', title: 'A year of you', description: 'Complete 365 habit days', icon: 'trophy', check: (s) => s.habitDays >= 365 },
   { key: 'all_rounder', title: 'All-rounder', description: 'Track 3 different areas of life', icon: 'palette', check: (s) => s.categories >= 3 },
   { key: 'honest', title: 'Honest with myself', description: 'Write down the reason when you break a rule', icon: 'handshake', check: (s) => s.reasonedBreaks >= 1 },
+  { key: 'reviewer', title: 'Looking back', description: 'Complete your first weekly review', icon: 'calendar-check', check: (s) => s.reviews >= 1 },
+  { key: 'ambassador', title: 'Ambassador', description: 'A friend joined with your invite', icon: 'account-heart', check: (s) => s.referrals >= 1 },
   { key: 'level_5', title: 'Disciplined', description: 'Reach level 5', icon: 'star-circle', check: (s) => s.level >= 5 },
   { key: 'level_10', title: 'Anchored', description: 'Reach level 10', icon: 'anchor', check: (s) => s.level >= 10 },
 ];
@@ -67,7 +69,10 @@ async function loadCounts(userId) {
        (SELECT count(*) FROM expenses WHERE user_id = $1 AND NOT is_rule_break) AS "keptExpenses",
        (SELECT count(*) FROM rule_breaks WHERE user_id = $1) AS breaks,
        (SELECT count(*) FROM rule_breaks WHERE user_id = $1 AND reason IS NOT NULL AND reason <> '') AS "reasonedBreaks",
-       (SELECT count(*) FROM member_achievements WHERE user_id = $1) AS achievements`,
+       (SELECT count(*) FROM member_achievements WHERE user_id = $1) AS achievements,
+       (SELECT count(*) FROM weekly_reviews WHERE user_id = $1) AS reviews,
+       -- friends count once they verify their email (no farming with fake accounts)
+       (SELECT count(*) FROM members WHERE referred_by = $1 AND email_verified_at IS NOT NULL) AS referrals`,
     [userId],
   );
   return rows[0];
@@ -80,7 +85,9 @@ export function computeXp(c, s) {
     c.cleanTrades * s.xp_clean_trade +
     c.keptExpenses * s.xp_expense -
     c.breaks * s.xp_rule_break +
-    c.achievements * s.xp_achievement;
+    c.achievements * s.xp_achievement +
+    (Number(c.reviews) || 0) * s.xp_weekly_review +
+    (Number(c.referrals) || 0) * s.xp_referral;
   return Math.max(0, xp);
 }
 
@@ -128,6 +135,8 @@ export async function gameState(userId, settings, streaks) {
       journal: settings.xp_journal,
       expense: settings.xp_expense,
       ruleBreak: -settings.xp_rule_break,
+      weeklyReview: settings.xp_weekly_review,
+      friendJoined: settings.xp_referral,
     },
   };
 }

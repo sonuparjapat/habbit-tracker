@@ -4,6 +4,7 @@
  *   GET  /api/meta        categories, markets, emotions — the lists the app shows
  *   GET  /api/config      admin settings marked public + active announcements
  *   GET  /api/templates   ready-made trackers ("Drink water", "No smoking"…)
+ *   GET  /api/starter-packs   bundles of templates ("Morning routine"…) — one tap creates them all
  *   POST /api/feedback    send a bug report / idea (works for guests too); the app also sends crash reports here
  */
 import { Router } from 'express';
@@ -15,6 +16,7 @@ import { optionalAuth } from '../middleware/auth.js';
 import { HttpError, parse } from '../middleware/errors.js';
 import { CATEGORIES, EMOTIONS, MARKETS } from '../services/catalog.js';
 import { getPublicSettings } from '../services/settings.js';
+import { listPublicPacks } from '../services/starterPacks.js';
 
 /** Public data the app and website need before (or without) signing in. */
 export const metaRouter = Router();
@@ -37,6 +39,10 @@ metaRouter.get('/config', async (_req, res) => {
   ]);
   res.set('Cache-Control', 'public, max-age=30');
   res.json({ appName: config.appName, termsVersion: config.termsVersion, settings, announcements, serverTime: new Date().toISOString() });
+});
+
+metaRouter.get('/starter-packs', async (_req, res) => {
+  res.json({ packs: await listPublicPacks() });
 });
 
 metaRouter.get('/templates', async (_req, res) => {

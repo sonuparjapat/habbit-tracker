@@ -94,3 +94,15 @@ export const DEFAULT_TEMPLATES = [
   { slug: 'no-alcohol', category: 'quit', type: 'habit', name: 'No alcohol', subtitle: 'Clear head, better days', icon: 'glass-cocktail-off', color: '#7C5CFF', config: { kind: 'quit' } },
   { slug: 'no-gambling', category: 'quit', type: 'habit', name: 'No gambling / betting', subtitle: 'Protect your money', icon: 'cards-playing-outline', color: '#EC4899', config: { kind: 'quit' } },
 ];
+
+/** Starter packs seeded on first start (admins can edit them in Admin → Starter packs). */
+export const DEFAULT_STARTER_PACKS = [
+  { slug: 'morning-routine', name: 'Morning routine', emoji: '🌅', description: 'Wake early, hydrate, breathe, write. Win the day before 9 AM.', templateSlugs: ['wake-early', 'water', 'meditate', 'journal'] },
+  { slug: 'get-fit', name: 'Get fit', emoji: '💪', description: 'Move every day, walk more, drink water, sleep well.', templateSlugs: ['workout', 'steps', 'water', 'sleep'] },
+  { slug: 'quit-smoking', name: 'Quit smoking', emoji: '🚭', description: 'Every clean day counts — with water and walks to beat cravings.', templateSlugs: ['no-smoking', 'water', 'steps'] },
+  { slug: 'study-mode', name: 'Study mode', emoji: '📚', description: 'Focused study, deep work, reading — and enough sleep to remember it.', templateSlugs: ['study', 'deep-work', 'read', 'sleep'] },
+  { slug: 'calm-mind', name: 'Calm mind', emoji: '🧘', description: 'Meditation, gratitude and journaling for a quieter head.', templateSlugs: ['meditate', 'gratitude', 'journal', 'sleep'] },
+  { slug: 'digital-detox', name: 'Digital detox', emoji: '📵', description: 'Less scrolling, more reading, earlier mornings.', templateSlugs: ['social-media-limit', 'read', 'wake-early'] },
+  { slug: 'money-smart', name: 'Money smart', emoji: '💰', description: 'A daily budget, no impulse buys, and saving a little every day.', templateSlugs: ['daily-budget', 'no-impulse-buys', 'save-daily'] },
+  { slug: 'disciplined-trader', name: 'Disciplined trader', emoji: '📈', description: 'Strict trade limits plus the habits that keep your head clear.', templateSlugs: ['disciplined-intraday', 'meditate', 'sleep'] },
+];

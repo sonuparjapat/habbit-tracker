@@ -16,9 +16,11 @@
  *   /api/trackers/:id/expenses                                                   → routes/trackerExpenses.js
  *   /api/trades/:id         edit / delete one trade                              → routes/entries.js
  *   /api/expenses/:id       edit / delete one expense                            → routes/entries.js
+ *   /api/sync               changes the app saved while offline                  → routes/sync.js
  *   /api/admin/...          admin panel (users, roles, audit)                    → routes/admin.js
  *                           admin panel (settings, content, analytics, system)   → routes/adminContent.js
  *                           admin panel (blocked IPs, locked accounts, log)      → routes/adminSecurity.js
+ *                           admin panel (offline changes that got stuck)         → routes/adminSync.js
  */
 import cors from 'cors';
 import express from 'express';
@@ -29,15 +31,18 @@ import { config } from './config.js';
 import { pool } from './db/pool.js';
 import { requireAdmin, requireAuth } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errors.js';
+import { localize } from './middleware/localize.js';
 import { blockDuringMaintenance } from './middleware/maintenance.js';
 import { blockIps } from './services/security.js';
 import { adminRouter } from './routes/admin.js';
 import { adminContentRouter } from './routes/adminContent.js';
 import { adminSecurityRouter } from './routes/adminSecurity.js';
+import { adminSyncRouter } from './routes/adminSync.js';
 import { authRouter } from './routes/auth.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { expensesRouter, tradesRouter } from './routes/entries.js';
 import { metaRouter } from './routes/meta.js';
+import { syncRouter } from './routes/sync.js';
 import { trackerExpensesRouter } from './routes/trackerExpenses.js';
 import { trackersRouter } from './routes/trackers.js';
 import { trackerTradesRouter } from './routes/trackerTrades.js';
@@ -63,6 +68,8 @@ export function createApp() {
   // Security for every API call: blocked IPs are refused, and no single IP may flood the API.
   // The ceiling is generous because many people can share one mobile-network IP.
   app.use('/api', blockIps);
+  // Hindi (or English) replies for the app — see middleware/localize.js
+  app.use('/api', localize);
   app.use(
     '/api',
     rateLimit({
@@ -85,9 +92,10 @@ export function createApp() {
   app.use('/api/trackers', ...member, trackersRouter, trackerTradesRouter, trackerExpensesRouter);
   app.use('/api/trades', ...member, tradesRouter);
   app.use('/api/expenses', ...member, expensesRouter);
+  app.use('/api/sync', ...member, syncRouter);
 
   // Staff only (each admin route also checks its own permission)
-  app.use('/api/admin', requireAuth, requireAdmin, adminRouter, adminContentRouter, adminSecurityRouter);
+  app.use('/api/admin', requireAuth, requireAdmin, adminRouter, adminContentRouter, adminSecurityRouter, adminSyncRouter);
 
   app.use(notFound);
   app.use(errorHandler);
