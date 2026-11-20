@@ -17,14 +17,15 @@ import {
   type TradingTracker,
 } from '@/lib/types';
 import { colors } from '@/theme';
+import { t } from '@/lib/i18n';
 
 function confirmDelete(title: string, msg: string, onYes: () => void) {
   if (Platform.OS === 'web') {
-    if (globalThis.confirm?.(msg)) onYes();
+    if (globalThis.confirm?.(t(msg))) onYes();
   } else
-    Alert.alert(title, msg, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: onYes },
+    Alert.alert(t(title), t(msg), [
+      { text: t('Cancel'), style: 'cancel' },
+      { text: t('Delete'), style: 'destructive', onPress: onYes },
     ]);
 }
 

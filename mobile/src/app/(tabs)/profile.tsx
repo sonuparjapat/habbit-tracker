@@ -10,6 +10,7 @@ import { CATEGORIES } from '@/lib/catalog';
 import { setRemindersEnabled } from '@/lib/notifications';
 import { useAppConfig } from '@/lib/config';
 import { usePrefs } from '@/lib/prefs';
+import { effectiveLanguage, LANGUAGES, t } from '@/lib/i18n';
 import { enablePush, refreshPushToken } from '@/lib/push';
 import { useTrackers } from '@/lib/queries';
 import { contactSupport } from '@/lib/support';
@@ -19,6 +20,8 @@ import { colors } from '@/theme';
 const COMMON_CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'AED', 'SGD', 'AUD', 'CAD', 'JPY', 'BRL', 'ZAR', 'NGN', 'PKR', 'BDT', 'IDR'];
 
 function alert(title: string, message?: string) {
+  title = t(title);
+  message = message ? t(message) : message;
   if (Platform.OS === 'web') globalThis.alert?.(message ? `${title}\n\n${message}` : title);
   else Alert.alert(title, message);
 }
@@ -28,9 +31,9 @@ function confirm(title: string, message: string, onYes: () => void) {
     if (globalThis.confirm?.(`${title}\n\n${message}`)) onYes();
     return;
   }
-  Alert.alert(title, message, [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Yes', style: 'destructive', onPress: onYes },
+  Alert.alert(t(title), t(message), [
+    { text: t('Cancel'), style: 'cancel' },
+    { text: t('Yes'), style: 'destructive', onPress: onYes },
   ]);
 }
 
@@ -52,6 +55,8 @@ function Appearance() {
   const adminTheme = usePrefs((s) => s.adminTheme);
   const update = usePrefs((s) => s.update);
   const value = pref === 'default' ? adminTheme : pref;
+  const { settings } = useAppConfig();
+  const lang = effectiveLanguage(settings.hindi_enabled, usePrefs((s) => s.language));
   return (
     <>
       <SectionTitle>Appearance</SectionTitle>
@@ -64,6 +69,12 @@ function Appearance() {
         value={value}
         onChange={(v) => void update({ theme: v })}
       />
+      {settings.hindi_enabled ? (
+        <>
+          <SectionTitle>Language</SectionTitle>
+          <Segmented options={LANGUAGES} value={lang} onChange={(v) => void update({ language: v })} />
+        </>
+      ) : null}
     </>
   );
 }
@@ -172,6 +183,23 @@ export default function Profile() {
           <LinkRow icon="gamepad-variant-outline" label="Arcade · boss, piggy bank, savings" onPress={() => router.push('/games' as Href)} />
         </Card>
       ) : null}
+      <Card padded={false} style={{ paddingHorizontal: 20, marginTop: 16 }}>
+        <LinkRow icon="account-multiple-plus-outline" label="Invite friends" onPress={() => router.push('/invite' as Href)} />
+        {settings.weekly_review_enabled ? (
+          <>
+            <Divider />
+            <LinkRow icon="calendar-check-outline" label="Weekly review" onPress={() => router.push('/review' as Href)} />
+          </>
+        ) : null}
+        {settings.focus_timer_enabled ? (
+          <>
+            <Divider />
+            <LinkRow icon="timer-outline" label="Focus timer" onPress={() => router.push('/focus' as Href)} />
+          </>
+        ) : null}
+        <Divider />
+        <LinkRow icon="package-variant-closed" label="Starter packs" onPress={() => router.push('/packs' as Href)} />
+      </Card>
       {settings.tour_enabled ? (
         <Card padded={false} style={{ paddingHorizontal: 20, marginTop: 16 }}>
           <LinkRow

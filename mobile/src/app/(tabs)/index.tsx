@@ -6,6 +6,8 @@ import { CelebrationModal, LevelBar, type Celebration } from '@/components/game'
 import { Banners } from '@/components/gates';
 import { GuestHome } from '@/components/guest';
 import { ForestPreview } from '@/components/forest';
+import { QuickActions, ReviewInvite, StartWithPack } from '@/components/quickActions';
+import { SyncStatus } from '@/components/syncStatus';
 import { BossPreview } from '@/components/games';
 import { GuidedTour, parseTourSteps } from '@/components/tour';
 import { AlertCard, Button, Card, EmptyState, ErrorView, Icon, IconButton, Loading, Ring, Row, scoreColor, Screen, SectionTitle, Txt } from '@/components/ui';
@@ -13,6 +15,7 @@ import { useAuth } from '@/lib/auth';
 import { greeting, longDate } from '@/lib/format';
 import { useAppConfig } from '@/lib/config';
 import { usePrefs } from '@/lib/prefs';
+import { maybeAskForRating } from '@/lib/rating';
 import { useDashboard, useMarkAchievementsSeen } from '@/lib/queries';
 import type { DashboardCard, Insight } from '@/lib/types';
 import { colors } from '@/theme';
@@ -71,6 +74,8 @@ export default function Today() {
     setClosedCelebration(pendingKey);
     if (pending?.kind === 'badges') markSeen.mutate();
     if (game && game.level > celebratedLevel) void updatePrefs({ celebratedLevel: game.level });
+    // A happy moment: a good time to ask for a rating (rarely, and never in the first days)
+    void maybeAskForRating(settings);
   };
 
   if (!signedIn) return <GuestHome />;
@@ -104,6 +109,7 @@ export default function Today() {
       </Row>
 
       <Banners />
+      <SyncStatus />
 
       {user?.termsOutdated ? (
         <Banner icon="file-document-edit-outline" color={colors.blue} title="We updated our Terms & Privacy Policy" message="Please review and accept to keep using Anchor." action="Accept updated terms" onPress={() => void acceptTerms()} />
@@ -112,7 +118,8 @@ export default function Today() {
         <Banner icon="email-alert-outline" color={colors.amber} title="Verify your email" message="It lets you recover your account if you forget your password." action="Enter code" onPress={() => router.push('/verify-email')} />
       ) : null}
 
-      {error ? <ErrorView error={error} onRetry={refetch} /> : null}
+      {/* With saved data on screen, a failed refresh is just a small note (SyncStatus), not an error page */}
+      {error && !data ? <ErrorView error={error} onRetry={refetch} /> : null}
 
       {data && data.cards.length === 0 ? (
         <EmptyState
@@ -123,12 +130,15 @@ export default function Today() {
           onAction={() => router.push('/tracker/new')}
         />
       ) : null}
+      {data && data.cards.length === 0 ? <StartWithPack /> : null}
 
       {data && data.cards.length > 0 ? (
         <>
           {game ? (
             <View style={{ marginBottom: 12 }}>
               <LevelBar game={game} onPress={() => router.push('/achievements' as Href)} />
+              <QuickActions />
+              {data ? <ReviewInvite date={data.date} /> : null}
               <BossPreview />
               <ForestPreview />
             </View>

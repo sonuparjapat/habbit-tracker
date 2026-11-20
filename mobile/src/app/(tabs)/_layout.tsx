@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router/js-tabs';
 import { Icon } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { colors } from '@/theme';
 
 export default function TabsLayout() {
@@ -14,19 +15,19 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen
         name="index"
-        options={{ title: 'Today', tabBarIcon: ({ color }) => <Icon name="white-balance-sunny" color={color as string} size={24} /> }}
+        options={{ title: t('Today'), tabBarIcon: ({ color }) => <Icon name="white-balance-sunny" color={color as string} size={24} /> }}
       />
       <Tabs.Screen
         name="trackers"
-        options={{ title: 'Trackers', tabBarIcon: ({ color }) => <Icon name="view-grid-outline" color={color as string} size={24} /> }}
+        options={{ title: t('Trackers'), tabBarIcon: ({ color }) => <Icon name="view-grid-outline" color={color as string} size={24} /> }}
       />
       <Tabs.Screen
         name="insights"
-        options={{ title: 'Insights', tabBarIcon: ({ color }) => <Icon name="chart-box-outline" color={color as string} size={24} /> }}
+        options={{ title: t('Insights'), tabBarIcon: ({ color }) => <Icon name="chart-box-outline" color={color as string} size={24} /> }}
       />
       <Tabs.Screen
         name="profile"
-        options={{ title: 'Profile', tabBarIcon: ({ color }) => <Icon name="account-circle-outline" color={color as string} size={24} /> }}
+        options={{ title: t('Profile'), tabBarIcon: ({ color }) => <Icon name="account-circle-outline" color={color as string} size={24} /> }}
       />
     </Tabs>
   );

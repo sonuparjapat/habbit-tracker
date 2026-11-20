@@ -23,6 +23,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { colors, gradients, isDark, levelColor, radius, space, themed } from '@/theme';
+import { t, tChildren } from '@/lib/i18n';
 import type { Insight } from '@/lib/types';
 
 export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -176,7 +177,7 @@ export function Txt({
     <Text
       numberOfLines={numberOfLines}
       style={[textStyles[variant], tint ? { color: tint } : null, center ? { textAlign: 'center' } : null, style]}>
-      {children}
+      {tChildren(children)}
     </Text>
   );
 }
@@ -277,7 +278,7 @@ export function Button({
   const inner = (
     <Row gap={8} style={{ justifyContent: 'center' }}>
       {loading ? <ActivityIndicator color={fg} size="small" /> : icon ? <Icon name={icon} size={18} color={fg} /> : null}
-      <Text style={{ color: fg, fontWeight: '700', fontSize: small ? 14 : 16 }}>{title}</Text>
+      <Text style={{ color: fg, fontWeight: '700', fontSize: small ? 14 : 16 }}>{t(title)}</Text>
     </Row>
   );
   const pad = { paddingVertical: small ? 10 : 16, paddingHorizontal: small ? 14 : 20 };
@@ -323,6 +324,7 @@ export function Input({ label, hint, style, ...props }: TextInputProps & { label
         selectionColor={colors.primary}
         style={[styles.input, props.multiline && { minHeight: 90, textAlignVertical: 'top' }, style]}
         {...props}
+        placeholder={props.placeholder ? t(props.placeholder) : undefined}
       />
       {hint ? <Txt variant="caption">{hint}</Txt> : null}
     </View>
@@ -354,7 +356,7 @@ export function Chip({
       ]}>
       <Row gap={6}>
         {icon ? <Txt>{icon}</Txt> : null}
-        <Text style={{ color: selected ? colors.text : colors.textMuted, fontWeight: '600', fontSize: 14 }}>{label}</Text>
+        <Text style={{ color: selected ? colors.text : colors.textMuted, fontWeight: '600', fontSize: 14 }}>{t(label)}</Text>
       </Row>
     </Pressable>
   );
@@ -381,7 +383,7 @@ export function Segmented<T extends string>({
               onChange(o.value);
             }}
             style={[styles.segment, active && { backgroundColor: colors.surfaceHigh }]}>
-            <Text style={{ color: active ? colors.text : colors.textMuted, fontWeight: '700', fontSize: 13 }}>{o.label}</Text>
+            <Text style={{ color: active ? colors.text : colors.textMuted, fontWeight: '700', fontSize: 13 }}>{t(o.label)}</Text>
           </Pressable>
         );
       })}

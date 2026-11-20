@@ -1,21 +1,25 @@
-import { QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import * as Notifications from 'expo-notifications';
-import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider, type Href } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CrashScreen } from '@/components/CrashScreen';
 import { AppGates } from '@/components/gates';
 import { useAuth } from '@/lib/auth';
 import { useAppConfig } from '@/lib/config';
+import { effectiveLanguage, setLanguage, t, type Language } from '@/lib/i18n';
 import { scheduleReminders } from '@/lib/notifications';
 import { usePrefs } from '@/lib/prefs';
+import { handleNotificationResponse } from '@/lib/notificationActions';
 import { refreshPushToken } from '@/lib/push';
-import { useTrackers } from '@/lib/queries';
-import { queryClient } from '@/lib/queryClient';
+import { invalidateAll, useTrackers } from '@/lib/queries';
+import { API_URL } from '@/lib/api';
+import { flushOutbox, loadOutbox, setOnDelivered } from '@/lib/outbox';
+import { persistOptions, queryClient } from '@/lib/queryClient';
 import { applyTheme, colors, type ThemeMode } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -36,8 +40,19 @@ function navTheme(mode: ThemeMode) {
  * default (Admin → App settings → Default app theme). Switching remounts the screens so every
  * colour is re-read.
  */
-function ThemeGate({ children }: { children: (mode: ThemeMode) => ReactNode }) {
+function ThemeGate({ children }: { children: (mode: ThemeMode, lang: Language) => ReactNode }) {
   const pref = usePrefs((s) => s.theme);
+  const { settings: appSettings } = useAppConfig();
+  // English unless the admin has switched Hindi on (Admin → App settings → Look & feel)
+  const lang: Language = effectiveLanguage(appSettings.hindi_enabled, usePrefs((s) => s.language));
+  setLanguage(lang);
+  // Switching language: fetch everything again, so the server's messages come back in the new language
+  const firstLang = useRef(lang);
+  useEffect(() => {
+    if (lang === firstLang.current) return;
+    firstLang.current = lang;
+    void queryClient.invalidateQueries();
+  }, [lang]);
   const cachedDefault = usePrefs((s) => s.adminTheme);
   const update = usePrefs((s) => s.update);
   const { settings } = useAppConfig();
@@ -57,7 +72,7 @@ function ThemeGate({ children }: { children: (mode: ThemeMode) => ReactNode }) {
     SystemUI.setBackgroundColorAsync(colors.bg).catch(() => {});
   }, [mode]);
 
-  return children(mode);
+  return children(mode, lang);
 }
 
 /** Keeps local reminders in sync with the user's trackers (only if the user opted in). */
@@ -66,9 +81,11 @@ function ReminderSync() {
   const currency = useAuth((s) => s.user?.currency ?? 'USD');
   const consent = usePrefs((s) => s.remindersConsent);
   const userId = useAuth((s) => s.user?.id);
+  const { settings } = useAppConfig();
+  const weeklyReview = settings.weekly_review_enabled;
   useEffect(() => {
-    if (data && consent) void scheduleReminders(data, currency);
-  }, [data, currency, consent]);
+    if (data && consent) void scheduleReminders(data, currency, { weeklyReview });
+  }, [data, currency, consent, weeklyReview]);
 
   // If this phone allows notifications, keep the server's copy of its push token fresh
   // (never asks for permission — that only happens when the member taps a switch)
@@ -78,11 +95,33 @@ function ReminderSync() {
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    const sub = Notifications.addNotificationResponseReceivedListener((res) => {
-      const url = res.notification.request.content.data?.url;
-      if (typeof url === 'string') router.push(url as Href);
-    });
+    // A tap on a notification (or its ✓ Done button) — also the one that opened the app from closed
+    const sub = Notifications.addNotificationResponseReceivedListener((res) => void handleNotificationResponse(res));
+    Notifications.getLastNotificationResponseAsync()
+      .then((res) => res && handleNotificationResponse(res))
+      .catch(() => {});
     return () => sub.remove();
+  }, []);
+  return null;
+}
+
+/**
+ * Offline-first plumbing:
+ *  - the outbox of the signed-in member is loaded (and delivered) — changes made offline are never lost
+ *  - when changes reach the server, every screen refreshes with the server's real numbers
+ *  - the server is poked right away, so a sleeping server starts waking up while the app opens
+ */
+function OfflineSync() {
+  const userId = useAuth((s) => s.user?.id ?? null);
+  useEffect(() => {
+    setOnDelivered(() => void invalidateAll());
+    void loadOutbox(userId);
+  }, [userId]);
+  useEffect(() => {
+    fetch(API_URL.replace(/\/api\/?$/, '') + '/health').catch(() => {});
+    // Keep trying while something is waiting (the server may take a minute to wake up)
+    const id = setInterval(() => void flushOutbox(), 20_000);
+    return () => clearInterval(id);
   }, []);
   return null;
 }
@@ -111,11 +150,12 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
         <ThemeGate>
-          {(mode) => (
-            <ThemeProvider value={navTheme(mode)} key={mode}>
+          {(mode, lang) => (
+            <ThemeProvider value={navTheme(mode)} key={`${mode}-${lang}`}>
               <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+              <OfflineSync />
               {token ? <ReminderSync /> : null}
               <AppGates>
                 <Stack
@@ -144,36 +184,40 @@ export default function RootLayout() {
                   {/* Always reachable */}
                   <Stack.Screen name="login" options={{ headerShown: false, ...modal }} />
                   <Stack.Screen name="register" options={{ headerShown: false, ...modal }} />
-                  <Stack.Screen name="forgot-password" options={{ title: 'Reset password', ...modal }} />
-                  <Stack.Screen name="unlock" options={{ title: 'Unlock account', ...modal }} />
+                  <Stack.Screen name="forgot-password" options={{ title: t('Reset password'), ...modal }} />
+                  <Stack.Screen name="unlock" options={{ title: t('Unlock account'), ...modal }} />
                   <Stack.Screen name="legal/[doc]" options={{ title: '' }} />
-                  <Stack.Screen name="feedback" options={{ title: 'Send feedback', ...modal }} />
+                  <Stack.Screen name="feedback" options={{ title: t('Send feedback'), ...modal }} />
+                  <Stack.Screen name="packs" options={{ title: t('Starter packs') }} />
 
                   {/* Your data: only when signed in. Guests reach these via goProtected() (sign-in sheet first);
                       if one is opened any other way (deep link, notification, signing out), go home — never to a login wall. */}
                   <Stack.Protected guard={!!token} redirectTo={showOnboarding ? '/onboarding' : '/'}>
-                    <Stack.Screen name="verify-email" options={{ title: 'Verify email', ...modal }} />
-                    <Stack.Screen name="achievements" options={{ title: 'Level & badges' }} />
-                    <Stack.Screen name="forest" options={{ title: 'Your forest' }} />
-                    <Stack.Screen name="games" options={{ title: 'Arcade' }} />
-                    <Stack.Screen name="account/password" options={{ title: 'Change password', ...modal }} />
-                    <Stack.Screen name="account/delete" options={{ title: 'Delete account', ...modal }} />
-                    <Stack.Screen name="tracker/new" options={{ title: 'New tracker', ...modal }} />
+                    <Stack.Screen name="verify-email" options={{ title: t('Verify email'), ...modal }} />
+                    <Stack.Screen name="achievements" options={{ title: t('Level & badges') }} />
+                    <Stack.Screen name="forest" options={{ title: t('Your forest') }} />
+                    <Stack.Screen name="games" options={{ title: t('Arcade') }} />
+                    <Stack.Screen name="review" options={{ title: t('Weekly review') }} />
+                    <Stack.Screen name="focus" options={{ title: t('Focus timer') }} />
+                    <Stack.Screen name="invite" options={{ title: t('Invite friends') }} />
+                    <Stack.Screen name="account/password" options={{ title: t('Change password'), ...modal }} />
+                    <Stack.Screen name="account/delete" options={{ title: t('Delete account'), ...modal }} />
+                    <Stack.Screen name="tracker/new" options={{ title: t('New tracker'), ...modal }} />
                     <Stack.Screen name="tracker/[id]/index" options={{ title: '' }} />
-                    <Stack.Screen name="tracker/[id]/edit" options={{ title: 'Edit tracker', ...modal }} />
-                    <Stack.Screen name="tracker/[id]/trade" options={{ title: 'Log trade', ...modal }} />
-                    <Stack.Screen name="tracker/[id]/quick" options={{ title: 'Quick day log', ...modal }} />
-                    <Stack.Screen name="tracker/[id]/expense" options={{ title: 'Add expense', ...modal }} />
-                    <Stack.Screen name="tracker/[id]/journal" options={{ title: 'Daily journal', ...modal }} />
-                    <Stack.Screen name="tracker/[id]/report" options={{ title: 'Report' }} />
-                    <Stack.Screen name="tracker/[id]/breaks" options={{ title: 'Rule breaks' }} />
+                    <Stack.Screen name="tracker/[id]/edit" options={{ title: t('Edit tracker'), ...modal }} />
+                    <Stack.Screen name="tracker/[id]/trade" options={{ title: t('Log trade'), ...modal }} />
+                    <Stack.Screen name="tracker/[id]/quick" options={{ title: t('Quick day log'), ...modal }} />
+                    <Stack.Screen name="tracker/[id]/expense" options={{ title: t('Add expense'), ...modal }} />
+                    <Stack.Screen name="tracker/[id]/journal" options={{ title: t('Daily journal'), ...modal }} />
+                    <Stack.Screen name="tracker/[id]/report" options={{ title: t('Report') }} />
+                    <Stack.Screen name="tracker/[id]/breaks" options={{ title: t('Rule breaks') }} />
                   </Stack.Protected>
                 </Stack>
               </AppGates>
             </ThemeProvider>
           )}
         </ThemeGate>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </SafeAreaProvider>
   );
 }

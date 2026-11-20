@@ -1,10 +1,16 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { del, get, patch, post, put } from './api';
+import { del, get, patch, post } from './api';
 import { localToday } from './format';
 import { useAuth } from './auth';
+import { applyToDashboard, applyToHabitToday, withPendingDashboard, withPendingHabitToday, type EntryChange } from './optimistic';
+import { enqueue } from './outbox';
 import { queryClient } from './queryClient';
 import type {
   Dashboard,
+  HabitConfig,
+  Invites,
+  StarterPack,
+  WeeklyReview,
   Forest,
   Games,
   DayStatus,
@@ -57,8 +63,9 @@ export const useTemplates = () =>
 
 /* --------------------------------- Reads ---------------------------------- */
 
+/** Today screen. Changes still waiting in the outbox are shown on top of the server's data. */
 export const useDashboard = () =>
-  useQuery({ queryKey: keys.dashboard, queryFn: () => get<Dashboard>('/dashboard'), enabled: useSignedIn() });
+  useQuery({ queryKey: keys.dashboard, queryFn: async () => withPendingDashboard(await get<Dashboard>('/dashboard')), enabled: useSignedIn() });
 
 export const useTrackers = () =>
   useQuery({
@@ -74,8 +81,23 @@ export const useTracker = (id: string) =>
     enabled: useSignedIn() && !!id,
   });
 
+/** The habit config of a tracker, from whatever is already loaded. */
+function cachedHabitConfig(id: string) {
+  const tracker = queryClient.getQueryData<Tracker>(keys.tracker(id));
+  if (tracker?.type === 'habit') return tracker.config as HabitConfig;
+  const card = queryClient.getQueryData<Dashboard>(keys.dashboard)?.cards.find((c) => c.tracker.id === id);
+  return card?.tracker.type === 'habit' ? (card.tracker.config as HabitConfig) : undefined;
+}
+
 export function useTrackerToday<T extends TradingToday | HabitToday | SpendingToday>(id: string) {
-  return useQuery({ queryKey: keys.today(id), queryFn: () => get<T>(`/trackers/${id}/today`), enabled: useSignedIn() && !!id });
+  return useQuery({
+    queryKey: keys.today(id),
+    queryFn: async () => {
+      const today = await get<T>(`/trackers/${id}/today`);
+      return ('completedToday' in today ? withPendingHabitToday(id, today as HabitToday, cachedHabitConfig(id)) : today) as T;
+    },
+    enabled: useSignedIn() && !!id,
+  });
 }
 
 /**
@@ -135,16 +157,35 @@ export const useDayStatus = (id: string) =>
 
 /* --------------------------------- Writes --------------------------------- */
 
+/** Show a check-in change on screen right away (Today + the tracker's own screen). */
+export function showEntryChange(trackerId: string, date: string, change: EntryChange) {
+  queryClient.setQueryData<Dashboard>(keys.dashboard, (d) => (d ? applyToDashboard(d, trackerId, date, change) : d));
+  const cfg = cachedHabitConfig(trackerId);
+  if (cfg)
+    queryClient.setQueryData<HabitToday>(keys.today(trackerId), (t) => (t && 'completedToday' in t && t.date === date ? applyToHabitToday(t, cfg, change) : t));
+}
+
+/**
+ * Check in / write a journal. Never waits for the server: the screen updates at once and the change
+ * goes into the outbox, which delivers it as soon as the server is reachable (see lib/outbox.ts).
+ */
 export function useSaveEntry(trackerId: string) {
   return useMutation({
-    mutationFn: ({ date, ...body }: { date: string } & Partial<Omit<Entry, 'date'>>) =>
-      put<{ entry: Entry }>(`/trackers/${trackerId}/entries/${date}`, body),
-    onSuccess: invalidateAll,
+    mutationFn: async ({ date, ...body }: { date: string } & Partial<Omit<Entry, 'date'>>) => {
+      showEntryChange(trackerId, date, { kind: 'save', completed: body.completed, value: body.value });
+      await enqueue('PUT', `/trackers/${trackerId}/entries/${date}`, body);
+    },
   });
 }
 
+/** Undo a check-in — instantly, through the outbox. */
 export function useDeleteEntry(trackerId: string) {
-  return useMutation({ mutationFn: (date: string) => del(`/trackers/${trackerId}/entries/${date}`), onSuccess: invalidateAll });
+  return useMutation({
+    mutationFn: async (date: string) => {
+      showEntryChange(trackerId, date, { kind: 'delete' });
+      await enqueue('DELETE', `/trackers/${trackerId}/entries/${date}`);
+    },
+  });
 }
 
 export interface TrackerInput {
@@ -215,7 +256,12 @@ export function useCreateExpense(trackerId: string) {
 
 /** After the celebration is shown, so it isn't shown again. */
 export function useMarkAchievementsSeen() {
-  return useMutation({ mutationFn: () => post('/dashboard/achievements/seen'), onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.dashboard }) });
+  return useMutation({
+    mutationFn: async () => {
+      queryClient.setQueryData<Dashboard>(keys.dashboard, (d) => (d?.game ? { ...d, game: { ...d.game, newlyUnlocked: [] } } : d));
+      await enqueue('POST', '/dashboard/achievements/seen');
+    },
+  });
 }
 
 export function sendFeedback(body: { kind: 'bug' | 'idea' | 'question' | 'other'; message: string; email?: string; appVersion?: string; platform?: string }) {
@@ -231,3 +277,34 @@ export const useForest = (enabled = true) =>
 
 export const useGames = () =>
   useQuery({ queryKey: ['games'], queryFn: () => get<Games>('/dashboard/games'), enabled: useSignedIn() });
+
+/* ------------------------------ Growth & retention ------------------------------ */
+
+export const useStarterPacks = () =>
+  useQuery({ queryKey: ['starter-packs'], queryFn: async () => (await get<{ packs: StarterPack[] }>('/starter-packs')).packs, staleTime: 5 * 60_000 });
+
+export function useApplyPack() {
+  return useMutation({
+    mutationFn: (slug: string) => post<{ trackers: Tracker[]; skipped: number }>('/trackers/from-pack', { slug }),
+    onSuccess: invalidateAll,
+  });
+}
+
+export const useInvites = () => useQuery({ queryKey: ['invites'], queryFn: () => get<Invites>('/auth/me/invites'), enabled: useSignedIn() });
+
+/** The weekly review; no week = the week just finished (this week on Sundays). */
+export const useWeeklyReview = (week?: string) =>
+  useQuery({ queryKey: ['review', week ?? 'latest'], queryFn: () => get<WeeklyReview>(`/dashboard/review${week ? `?week=${week}` : ''}`), enabled: useSignedIn() });
+
+export function useSaveReview() {
+  return useMutation({
+    mutationFn: async (body: { weekStart: string; wentWell?: string; hard?: string; nextFocus?: string }) => {
+      const { weekStart, ...answers } = body;
+      // Keep the answers on screen (every cached copy of this week's review)
+      queryClient.setQueriesData<WeeklyReview>({ queryKey: ['review'] }, (r) =>
+        r && r.weekStart === weekStart ? { ...r, answers: { ...r.answers, ...Object.fromEntries(Object.entries(answers).filter(([, v]) => v)) } } : r,
+      );
+      await enqueue('PUT', '/dashboard/review', body);
+    },
+  });
+}

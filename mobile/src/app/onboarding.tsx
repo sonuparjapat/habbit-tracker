@@ -1,8 +1,10 @@
 import { router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Button, Gradient, haptic, Icon, Row, Screen, Txt } from '@/components/ui';
+import { Button, Gradient, haptic, Icon, Row, Screen, Segmented, Txt } from '@/components/ui';
 import { CATEGORIES } from '@/lib/catalog';
+import { useAppConfig } from '@/lib/config';
+import { effectiveLanguage, LANGUAGES } from '@/lib/i18n';
 import { requestReminderPermission } from '@/lib/notifications';
 import { usePrefs } from '@/lib/prefs';
 import type { CategoryKey } from '@/lib/types';
@@ -49,9 +51,18 @@ function Welcome({ onNext }: { onNext: () => void }) {
     { icon: 'fire', color: colors.green, text: 'Streaks, XP and badges that make you want to show up every day' },
     { icon: 'chart-timeline-variant', color: colors.blue, text: 'See your progress daily, weekly and monthly' },
   ];
+  const { settings } = useAppConfig();
+  const lang = effectiveLanguage(settings.hindi_enabled, usePrefs((s) => s.language));
+  const update = usePrefs((s) => s.update);
   return (
     <View style={{ flex: 1, justifyContent: 'space-between', gap: 32 }}>
       <View style={{ gap: 28 }}>
+        {/* Language first, so everything after is readable (only when the admin has switched Hindi on) */}
+        {settings.hindi_enabled ? (
+          <View style={{ alignSelf: 'center', width: 220 }}>
+            <Segmented options={LANGUAGES} value={lang} onChange={(v) => void update({ language: v })} />
+          </View>
+        ) : null}
         <Gradient colors={gradients.primary} style={{ width: 84, height: 84, borderRadius: 28, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
           <Icon name="anchor" size={44} />
         </Gradient>

@@ -169,6 +169,8 @@ export interface HabitToday {
   overLimit: boolean;
   currentStreak: number;
   bestStreak: number;
+  /** Streak shields in hand (each one saves a missed day) */
+  shields?: number;
 }
 
 export interface SpendStatus {
@@ -440,4 +442,43 @@ export interface Games {
   piggyBanks: PiggyBank[];
   fortresses: Fortress[];
   quitSavings: QuitSaving[];
+}
+
+/** Starter packs (GET /api/starter-packs) */
+export interface StarterPack {
+  slug: string;
+  name: string;
+  emoji: string;
+  description: string;
+  trackers: { slug: string; type: 'habit' | 'trading' | 'spending'; name: string; subtitle: string; icon: string; color: string }[];
+}
+
+/** Invite a friend (GET /api/auth/me/invites) */
+export interface Invites {
+  code: string;
+  joined: number;
+  pending: number;
+  xpPerFriend: number;
+}
+
+/** Sunday weekly review (GET /api/dashboard/review) */
+export interface WeeklyReview {
+  weekStart: string;
+  weekEnd: string;
+  complete: boolean;
+  habits: { done: number; planned: number; rate: number | null; previousRate: number | null };
+  items: ({ trackerId: string; type: 'habit' | 'trading' | 'spending'; name: string; icon: string; color: string } & {
+    done?: number;
+    planned?: number;
+    tradingDays?: number;
+    cleanDays?: number;
+    trades?: number;
+    net?: number;
+    spent?: number;
+    daysOverBudget?: number;
+    dailyLimit?: number;
+  })[];
+  forest: { grown: number; withered: number };
+  bestDay: { date: string; day: string; good: number } | null;
+  answers: { wentWell?: string; hard?: string; nextFocus?: string };
 }

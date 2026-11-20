@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import type { Achievement, Game } from '@/lib/types';
 import { colors, gradients, radius, themed } from '@/theme';
+import { ShareButton } from './share';
 import { Button, Gradient, haptic, Icon, ProgressBar, Row, Txt } from './ui';
 
 /* --------------------------------- Level bar -------------------------------- */
@@ -133,7 +134,19 @@ export function CelebrationModal({ celebration, onClose }: { celebration: Celebr
                 ? celebration.badges.map((b) => b.title).join(' · ')
                 : badge!.description}
           </Txt>
-          <Button title="Keep going" icon="arrow-right" onPress={onClose} style={{ alignSelf: 'stretch', marginTop: 8 }} />
+          <View style={{ alignSelf: 'stretch', gap: 8, marginTop: 8 }}>
+            <Button title="Keep going" icon="arrow-right" onPress={onClose} />
+            <View style={{ alignItems: 'center' }}>
+              <ShareButton
+                label="Share it"
+                card={
+                  isLevel
+                    ? { emoji: '⭐', title: `Level ${celebration.level}`, stat: celebration.levelName }
+                    : { emoji: '🏅', title: badge!.title, stat: badge!.description, colors: ['#F59E0B', '#F43F5E'] }
+                }
+              />
+            </View>
+          </View>
         </Animated.View>
       </View>
     </Modal>

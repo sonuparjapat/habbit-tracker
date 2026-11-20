@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { language } from './i18n';
 import { Platform } from 'react-native';
 
 /**
@@ -54,6 +55,8 @@ export async function api<T = any>(method: string, path: string, body?: unknown)
       headers: {
         'Content-Type': 'application/json',
         ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        // The server translates its own messages (alerts, insights, errors) into the member's language
+        'X-App-Language': language(),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });

@@ -17,6 +17,10 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [marketing, setMarketing] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [showInvite, setShowInvite] = useState(false);
+  // The server may be asleep (free hosting): say so if signing in takes a while
+  const [slow, setSlow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -35,9 +39,10 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const submit = async () => {
     setError(null);
     setLoading(true);
+    const slowTimer = setTimeout(() => setSlow(true), 5000);
     try {
       if (mode === 'login') await login(email.trim(), password);
-      else await register({ name: name.trim(), email: email.trim(), password, acceptTerms, marketingOptIn: marketing, interests });
+      else await register({ name: name.trim(), email: email.trim(), password, acceptTerms, marketingOptIn: marketing, interests, inviteCode: inviteCode.trim() || undefined });
       setDone(true);
     } catch (e: any) {
       // Locked for safety → straight to the unlock screen (the code is already in their inbox)
@@ -47,6 +52,8 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       }
       setError(e?.message ?? 'Something went wrong');
     } finally {
+      clearTimeout(slowTimer);
+      setSlow(false);
       setLoading(false);
     }
   };
@@ -107,6 +114,13 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               <Checkbox checked={marketing} onChange={setMarketing}>
                 <Txt variant="caption">Send me occasional tips and product updates (optional)</Txt>
               </Checkbox>
+              {showInvite ? (
+                <Input label="Invite code (optional)" value={inviteCode} onChangeText={(t) => setInviteCode(t.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="ABCD2345" autoCapitalize="characters" maxLength={12} />
+              ) : (
+                <Pressable onPress={() => setShowInvite(true)} hitSlop={6}>
+                  <Txt variant="caption" color={colors.primary} style={{ fontWeight: '600' }}>🤝 Have a friend’s invite code?</Txt>
+                </Pressable>
+              )}
             </View>
           )}
 
@@ -117,6 +131,9 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             </Row>
           ) : null}
           <Button title={mode === 'login' ? 'Sign in' : 'Create account'} onPress={submit} loading={loading} disabled={!canSubmit} style={{ marginTop: 4 }} />
+          {slow ? (
+            <Txt variant="caption" center>Waking up the server — the first sign-in after a quiet spell can take up to a minute. Hang on…</Txt>
+          ) : null}
         </View>
 
         <Pressable

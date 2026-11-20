@@ -1,6 +1,6 @@
 import { router, type Href } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Animated, Easing, Pressable, View } from 'react-native';
 import { useAppConfig } from '@/lib/config';
 import { MARKETS } from '@/lib/catalog';
 import { money, pnlColor } from '@/lib/format';
@@ -202,28 +202,33 @@ export function HabitCard({ tracker, today, date, link = true }: { tracker: Habi
                 {today.currentStreak} {c.kind === 'quit' ? 'clean days' : 'day streak'}
               </Txt>
             </Row>
+            {today.shields ? (
+              <Txt variant="caption" color={colors.blue}>🛡️ {today.shields}</Txt>
+            ) : null}
             {status ? <Txt variant="caption" color={status.color}>{status.text}</Txt> : null}
           </Row>
         </View>
         {measured ? (
           <Row gap={8}>
-            <Pressable onPress={() => bump(-step)} hitSlop={8} style={roundBtn} accessibilityRole="button" accessibilityLabel={`Decrease ${tracker.name}`}>
+            <Pressable onPress={() => bump(-step)} hitSlop={8} style={roundBtn()} accessibilityRole="button" accessibilityLabel={`Decrease ${tracker.name}`}>
               <Icon name="minus" size={18} color={colors.textMuted} />
             </Pressable>
-            <Pressable onPress={() => bump(step)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Increase ${tracker.name}`} style={[roundBtn, c.kind === 'build' && done && { backgroundColor: tracker.color, borderColor: tracker.color }]}>
-              <Icon name={c.kind === 'build' && done ? 'check' : 'plus'} size={20} color={colors.text} />
+            <Pressable onPress={() => bump(step)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Increase ${tracker.name}`} style={[roundBtn(), c.kind === 'build' && done && { backgroundColor: tracker.color, borderColor: tracker.color }]}>
+              <Icon name={c.kind === 'build' && done ? 'check' : 'plus'} size={20} color={c.kind === 'build' && done ? '#FFFFFF' : colors.text} />
             </Pressable>
           </Row>
         ) : (
+          <CheckPop done={done} color={tracker.color}>
           <Pressable
             onPress={toggle}
             hitSlop={8}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: done }}
             accessibilityLabel={c.kind === 'quit' ? `Stayed clean today: ${tracker.name}` : `Done today: ${tracker.name}`}
-            style={[roundBtn, { width: 50, height: 50, borderRadius: 17 }, done && { backgroundColor: tracker.color, borderColor: tracker.color }]}>
-            <Icon name={done ? 'check-bold' : c.kind === 'quit' ? 'shield-outline' : 'check'} size={24} color={done ? colors.text : colors.textDim} />
+            style={[roundBtn(), { width: 50, height: 50, borderRadius: 17 }, done && { backgroundColor: tracker.color, borderColor: tracker.color }]}>
+            <Icon name={done ? 'check-bold' : c.kind === 'quit' ? 'shield-outline' : 'check'} size={24} color={done ? '#FFFFFF' : colors.textDim} />
           </Pressable>
+          </CheckPop>
         )}
       </Row>
       {measured ? (
@@ -251,7 +256,8 @@ export function HabitCard({ tracker, today, date, link = true }: { tracker: Habi
   );
 }
 
-const roundBtn = {
+/** Round +/- and check buttons (a function, so light / dark colours are read when drawing). */
+const roundBtn = () => ({
   width: 42,
   height: 42,
   borderRadius: 14,
@@ -260,4 +266,46 @@ const roundBtn = {
   borderColor: colors.border,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
-};
+});
+
+/**
+ * The satisfying bit: when a habit is checked off, the button pops and a ring bursts out of it.
+ * (Undoing is quiet.)
+ */
+function CheckPop({ done, color, children }: { done: boolean; color: string; children: ReactNode }) {
+  const [scale] = useState(() => new Animated.Value(1));
+  const [ring] = useState(() => new Animated.Value(0));
+  const firstRender = useRef(true);
+  useEffect(() => {
+    // Only celebrate a change made now — not a habit that was already done when the screen opened
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    if (!done) return;
+    scale.setValue(0.8);
+    ring.setValue(0);
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, friction: 3, tension: 160, useNativeDriver: true }),
+      Animated.timing(ring, { toValue: 1, duration: 650, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]).start();
+  }, [done, scale, ring]);
+  return (
+    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          width: 50,
+          height: 50,
+          borderRadius: 25,
+          borderWidth: 3,
+          borderColor: color,
+          opacity: ring.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.9, 0] }),
+          transform: [{ scale: ring.interpolate({ inputRange: [0, 1], outputRange: [0.8, 2] }) }],
+        }}
+      />
+      <Animated.View style={{ transform: [{ scale }] }}>{children}</Animated.View>
+    </View>
+  );
+}

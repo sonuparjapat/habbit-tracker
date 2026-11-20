@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { api, get, patch, post, setAuthToken, setUnauthorizedHandler } from './api';
 import { usePrefs } from './prefs';
 import { forgetPushToken } from './push';
-import { queryClient } from './queryClient';
+import { clearCache } from './queryClient';
 import { storage } from './storage';
 import type { CategoryKey, User } from './types';
 
@@ -18,6 +18,8 @@ export interface RegisterInput {
   acceptTerms: boolean;
   marketingOptIn: boolean;
   interests: CategoryKey[];
+  /** A friend's invite code (optional) */
+  inviteCode?: string;
 }
 
 interface AuthState {
@@ -147,7 +149,7 @@ export const useAuth = create<AuthState>((set, getState) => {
     logout: async () => {
       setAuthToken(null);
       await storage.remove(TOKEN_KEY);
-      queryClient.clear();
+      await clearCache();
       set({ token: null, user: null });
     },
 

@@ -6,6 +6,9 @@ import { money } from '@/lib/format';
 import { useGames } from '@/lib/queries';
 import type { Boss, Fortress, PiggyBank, QuitSaving } from '@/lib/types';
 import { colors, gradients } from '@/theme';
+import { useAppConfig } from '@/lib/config';
+import { maybeAskForRating } from '@/lib/rating';
+import { ShareButton } from './share';
 import { Card, CountUp, Gradient, haptic, Icon, ProgressBar, Row, Txt } from './ui';
 
 const BOSS_GRADIENT = ['#5B21B6', '#BE123C'] as const;
@@ -61,6 +64,11 @@ function HpBar({ hp, maxHp }: { hp: number; maxHp: number }) {
 }
 
 export function BossCard({ boss }: { boss: Boss }) {
+  const { settings } = useAppConfig();
+  // Beating the boss is a happy moment — a good (rare) time to ask for a rating
+  useEffect(() => {
+    if (boss.defeated) void maybeAskForRating(settings);
+  }, [boss.defeated, settings]);
   return (
     <Gradient colors={boss.defeated ? gradients.green : BOSS_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} sheen glow={boss.defeated ? colors.green : '#BE123C'} style={{ borderRadius: 28, padding: 22, gap: 12 }}>
       <Row style={{ justifyContent: 'space-between' }}>
@@ -83,6 +91,11 @@ export function BossCard({ boss }: { boss: Boss }) {
         </Txt>
       </Row>
       {!boss.defeated ? <Txt variant="caption">Every promise you keep is a hit. Every rule you break heals it. Beat it before Sunday ends.</Txt> : null}
+      {boss.defeated ? (
+        <View style={{ alignItems: 'center' }}>
+          <ShareButton label="Share my win" card={{ emoji: '💥', title: `I beat ${boss.name}!`, stat: `${boss.hits} promises kept this week`, colors: ['#16A34A', '#22C55E'] }} />
+        </View>
+      ) : null}
     </Gradient>
   );
 }

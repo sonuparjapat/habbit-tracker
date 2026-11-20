@@ -3,6 +3,7 @@ import { Alert, Platform, View } from 'react-native';
 import { TrackerForm } from '@/components/TrackerForm';
 import { Button, Loading, Screen } from '@/components/ui';
 import { useDeleteTracker, useTracker, useUpdateTracker } from '@/lib/queries';
+import { t } from '@/lib/i18n';
 
 export default function EditTracker() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,13 +22,13 @@ export default function EditTracker() {
     });
 
   const confirmDelete = () => {
-    const msg = 'All history for this tracker will be deleted permanently.';
+    const msg = t('All history for this tracker will be deleted permanently.');
     if (Platform.OS === 'web') {
       if (globalThis.confirm?.(msg)) doDelete();
     } else
-      Alert.alert('Delete tracker?', msg, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: doDelete },
+      Alert.alert(t('Delete tracker?'), msg, [
+        { text: t('Cancel'), style: 'cancel' },
+        { text: t('Delete'), style: 'destructive', onPress: doDelete },
       ]);
   };
 

@@ -2,6 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { TrackerForm, type TrackerDraft } from '@/components/TrackerForm';
+import { StartWithPack } from '@/components/quickActions';
 import { Card, ErrorView, Icon, Row, Screen, SectionTitle, TrackerIcon, Txt } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { useAppConfig } from '@/lib/config';
@@ -10,6 +11,7 @@ import { defaultConfigFor } from '@/lib/defaults';
 import { useCreateTracker, useTemplates } from '@/lib/queries';
 import type { CategoryKey, Template, TrackerType } from '@/lib/types';
 import { colors, radius } from '@/theme';
+import { t } from '@/lib/i18n';
 
 function draftFromTemplate(t: Template): TrackerDraft {
   return { type: t.type, category: t.category, name: t.name, icon: t.icon, color: t.color, templateSlug: t.slug, config: defaultConfigFor(t.type, t.config) as TrackerDraft['config'] };
@@ -52,7 +54,7 @@ export default function NewTracker() {
   if (draft) {
     return (
       <Screen edges={['bottom']}>
-        <Stack.Screen options={{ title: draft.templateSlug ? 'Make it yours' : 'Create tracker' }} />
+        <Stack.Screen options={{ title: t(draft.templateSlug ? 'Make it yours' : 'Create tracker') }} />
         <TrackerForm
           initial={draft}
           submitLabel="Create tracker"
@@ -70,7 +72,7 @@ export default function NewTracker() {
     const list = (templates.data ?? []).filter((t) => t.category === category && typeAllowed(t.type));
     return (
       <Screen edges={['bottom']}>
-        <Stack.Screen options={{ title: c.label }} />
+        <Stack.Screen options={{ title: t(c.label) }} />
         <Pressable onPress={() => setCategory(null)} style={{ marginBottom: 8 }} hitSlop={8}>
           <Row gap={4}>
             <Icon name="chevron-left" size={18} color={colors.primary} />
@@ -132,6 +134,9 @@ export default function NewTracker() {
   const ordered = CATEGORIES.filter((c) => c.key !== 'trading' || settings.feature_trading).sort((a, b) => Number(interests.includes(b.key)) - Number(interests.includes(a.key)));
   return (
     <Screen edges={['bottom']}>
+      <View style={{ marginTop: -16, marginBottom: 20 }}>
+        <StartWithPack />
+      </View>
       <Txt variant="h2" style={{ marginBottom: 6 }}>What do you want to track?</Txt>
       <Txt variant="caption" style={{ marginBottom: 20 }}>Choose an area. Every limit is yours to set.</Txt>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 }}>

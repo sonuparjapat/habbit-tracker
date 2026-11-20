@@ -23,8 +23,17 @@ export interface AppSettings {
   ads_enabled: boolean;
   daily_quotes: string[];
   default_theme: 'dark' | 'light' | 'system';
+  hindi_enabled: boolean;
   nudge_enabled: boolean;
   nudge_hour: number;
+  weekly_review_enabled: boolean;
+  rating_prompt_enabled: boolean;
+  focus_timer_enabled: boolean;
+  streak_shields_enabled: boolean;
+  shield_every_days: number;
+  shield_max: number;
+  xp_weekly_review: number;
+  xp_referral: number;
   tour_enabled: boolean;
   tour_steps: string[];
   xp_habit_day: number;
@@ -68,8 +77,17 @@ export const DEFAULT_CONFIG: AppConfig = {
     ads_enabled: false,
     daily_quotes: ['Small promises, kept daily, build unshakable self-trust.'],
     default_theme: 'dark',
+    hindi_enabled: false,
     nudge_enabled: true,
     nudge_hour: 20,
+    weekly_review_enabled: true,
+    rating_prompt_enabled: true,
+    focus_timer_enabled: true,
+    streak_shields_enabled: true,
+    shield_every_days: 7,
+    shield_max: 3,
+    xp_weekly_review: 20,
+    xp_referral: 100,
     tour_enabled: true,
     tour_steps: [],
     xp_habit_day: 10,

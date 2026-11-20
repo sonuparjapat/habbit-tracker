@@ -27,6 +27,12 @@ interface PrefsData {
   theme: ThemePref;
   /** Last default theme received from the admin settings (so the first frame already uses it) */
   adminTheme: 'dark' | 'light' | 'system';
+  /** First time the app was opened on this device (ms) — the rating prompt waits a few days */
+  firstOpenAt: number | null;
+  /** Last time we asked for a Play Store rating (ms) */
+  lastRatingAskAt: number | null;
+  /** App language */
+  language: 'en' | 'hi' | null;
 }
 
 interface PrefsState extends PrefsData {
@@ -45,6 +51,9 @@ const defaults: PrefsData = {
   tourDone: false,
   theme: 'default',
   adminTheme: 'dark',
+  firstOpenAt: null,
+  lastRatingAskAt: null,
+  language: null,
 };
 
 const pickData = (s: PrefsData): PrefsData => ({
@@ -58,6 +67,9 @@ const pickData = (s: PrefsData): PrefsData => ({
   tourDone: s.tourDone,
   theme: s.theme,
   adminTheme: s.adminTheme,
+  firstOpenAt: s.firstOpenAt,
+  lastRatingAskAt: s.lastRatingAskAt,
+  language: s.language,
 });
 
 export const usePrefs = create<PrefsState>((set, get) => ({
@@ -67,6 +79,7 @@ export const usePrefs = create<PrefsState>((set, get) => ({
     try {
       const raw = await storage.get(KEY);
       set({ ...defaults, ...(raw ? JSON.parse(raw) : {}), loaded: true });
+      if (!get().firstOpenAt) await get().update({ firstOpenAt: Date.now() });
     } catch {
       set({ loaded: true });
     }

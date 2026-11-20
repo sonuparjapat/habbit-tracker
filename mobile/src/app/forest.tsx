@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Animated, useWindowDimensions, View } from 'react-native';
 import { ForestField, TREE, TREE_LABEL } from '@/components/forest';
+import { ShareButton } from '@/components/share';
 import { Button, Card, EmptyState, ErrorView, Gradient, Loading, ProgressBar, Row, Screen, SectionTitle, Txt } from '@/components/ui';
 import { useForest } from '@/lib/queries';
 import type { TreeStage } from '@/lib/types';
@@ -53,6 +54,10 @@ export default function ForestScreen() {
           <Txt variant="caption" center>You reached the highest stage. Legendary.</Txt>
         )}
       </Gradient>
+
+      <View style={{ alignItems: 'flex-start', marginTop: 12 }}>
+        <ShareButton label="Share my forest" card={{ emoji: data.stage.emoji, title: data.stage.name, stat: `${data.alive} trees grown`, subtitle: 'One tree for every day I kept my promises', colors: gradients.green }} />
+      </View>
 
       <Card style={{ marginTop: 14 }}>
         <Row>
