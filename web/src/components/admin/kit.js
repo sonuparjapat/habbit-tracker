@@ -3,7 +3,7 @@
 /**
  * Admin UI kit — every admin page is built from these, so new pages need no new UI code.
  */
-import { createContext, use, useCallback, useRef, useState } from 'react';
+import { createContext, use, useCallback, useEffect, useRef, useState } from 'react';
 
 /* --------------------------------- Layout --------------------------------- */
 
@@ -487,5 +487,5 @@ export function TopProgress({ busy }) {
     const id = setTimeout(() => setShow(busy), busy ? 300 : 0);
     return () => clearTimeout(id);
   }, [busy]);
-  return busy && show ?<div className="top-progress" role="progressbar" aria-label="Loading" /> : null;
+  return busy && show ? <div className="top-progress" role="progressbar" aria-label="Loading" /> : null;
 }

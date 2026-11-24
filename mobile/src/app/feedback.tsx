@@ -54,7 +54,7 @@ export default function Feedback() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen edges={['bottom']} contentStyle={{ gap: 18, paddingTop: 16 }}>
-        <Txt variant="caption">Tell us what’s working, what isn’t, or what you wish Anchor did. It goes straight to the team.</Txt>
+        <Txt variant="caption">Tell us what’s working, what isn’t, or what you wish Holdfast did. It goes straight to the team.</Txt>
         <Row gap={8} style={{ flexWrap: 'wrap' }}>
           {KINDS.map((k) => (
             <Chip key={k.key} label={k.label} icon={k.icon} selected={kind === k.key} onPress={() => setKind(k.key)} />

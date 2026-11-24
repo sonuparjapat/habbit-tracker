@@ -17,6 +17,7 @@ const SECTIONS = [
       'Every change you make is recorded in Audit log — who did what, and when.',
       'Anything that can’t be undone (delete, send, suspend, lock, discard…) asks first in a dialog that says exactly what will happen. Press Esc or Cancel to back out.',
       'Super admins are only ever created on the server: npm run create-admin -- you@example.com "password".',
+      'The app is called Holdfast. Emails and the website take the name from the server settings (APP_NAME on Render, NEXT_PUBLIC_APP_NAME on Vercel); the phone app name is set in the app build. If you ever rename it, change all three.',
       'The ☀️ / 🌙 button next to the logo switches the admin panel between light and dark (saved in this browser).',
       'While the panel waits for the server you see shimmering placeholders and a thin glowing bar at the very top. If they stay for a while the free server is probably waking up — give it up to a minute. Members in the app see the same: placeholders, then a "Waking up the server — your data is safe" note, and their saved data stays on screen meanwhile.',
       'Every list (users, feedback, audit log, announcements, templates, starter packs, notifications, offline sync, security) has a search box and pages. Searching or changing a filter jumps back to page 1.',
@@ -32,6 +33,7 @@ const SECTIONS = [
       '⛔ Suspend (only an admin can lift it): add a reason — it is emailed to them and shown when they try to sign in. ✅ Reactivate emails them too.',
       'Accounts also lock automatically after too many wrong passwords in a row (App settings → Security → "Lock an account after…").',
       'Only super admins can make someone an admin, and nobody can change their own role or suspend themselves. The last super admin can never be removed.',
+      'Deleting an account (by the member or by you) removes all their data at once. Their feedback stays in Feedback, but without their email; the security log hides it too and is cleared after 90 days. This is what the Privacy Policy promises — keep it that way.',
     ],
   },
   {
@@ -154,7 +156,7 @@ export default function DocsPage() {
 
   return (
     <div className="stack" style={{ gap: 20 }}>
-      <PageHeader title="Help & docs" subtitle="How every part of Anchor works, and what each admin control does.">
+      <PageHeader title="Help & docs" subtitle="How every part of Holdfast works, and what each admin control does.">
         <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the docs…" style={{ width: 260 }} />
       </PageHeader>
 

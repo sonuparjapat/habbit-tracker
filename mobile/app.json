@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Anchor",
+    "name": "Holdfast",
     "slug": "anchor-discipline",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "anchor",
+    "scheme": "holdfast",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#0A0C11",
     "ios": {

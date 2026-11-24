@@ -1,4 +1,4 @@
-# Deploying Anchor & building the app
+# Deploying Holdfast & building the app
 
 ## What runs where
 
@@ -82,7 +82,7 @@ eas build -p android --profile production     # build number goes up automatical
 ```
 
 **Google Play Console** (one-time $25 developer account):
-1. **Create app.** Name: Anchor. Free app.
+1. **Create app.** Name: Holdfast. Free app.
 2. **App content:**
    - **Privacy policy:** `https://yourdomain.com/privacy`
    - **Account deletion:** `https://yourdomain.com/delete-account`

@@ -4,7 +4,7 @@
  * Keep in sync with the in-app copy: mobile/src/app/legal/[doc].tsx
  * ⚠️ Starting-point text — have it reviewed for your launch countries (India DPDP, EU GDPR, ...).
  */
-export const UPDATED = '18 November 2026';
+export const UPDATED = '24 November 2026';
 export const LEGAL_TITLES = { privacy: 'Privacy Policy', terms: 'Terms of Use', 'delete-account': 'Delete your account' };
 
 /** Legal content with the live app name and support email (from Admin → App settings). */
@@ -12,13 +12,15 @@ export const getLegal = ({ appName: APP_NAME, supportEmail: SUPPORT_EMAIL }) => 
   privacy: {
     title: 'Privacy Policy',
     sections: [
-      ['What we collect', 'Your name, email address, timezone and currency, and what you choose to log in the app: trackers, check-ins, trades, expenses, journal entries and rule breaks. We also record when you accept these policies.'],
-      ['What we don’t collect', 'We do not access your contacts, location, camera, microphone, photos or other apps. We do not connect to your broker or bank. Reminders are scheduled on your device and only if you allow them.'],
-      ['How we use it', 'Only to run the app for you: saving your data, calculating your streaks and reports, and sending account emails (verification and password reset). Product emails only if you opt in, and you can opt out anytime.'],
-      ['Who can see it', 'Only you. We never sell your data. Administrators can see account details (name, email, sign-up date) and counts, never the content of your trades, expenses or journal.'],
-      ['Advertising', `Free versions of ${APP_NAME} may show ads from Google AdMob. Where required, we ask for your consent before personalised ads are shown.`],
-      ['Your rights', 'From Profile in the app you can export all your data, change your email preferences, and permanently delete your account. Deletion removes your data from our database immediately.'],
-      ['Security', 'Passwords are hashed with bcrypt, data travels over HTTPS, and sessions can be revoked from every device.'],
+      ['What we collect', 'Your name, email address, timezone and currency, and what you choose to log: trackers, check-ins, trades, expenses, journal notes, weekly reviews and rule breaks. We also record when you accept these policies. If you turn on phone notifications we store a notification token for your phone. For security we log the IP address of sign-in attempts. If you send feedback, or the app crashes, we keep your message or the error report with the app version and platform.'],
+      ['What we don’t collect', 'We do not access your contacts, location, camera, microphone, photos or other apps. We do not connect to your broker or bank, and we don’t use an advertising ID.'],
+      ['How we use it', `Only to run ${APP_NAME} for you: saving your data, calculating your streaks and reports, sending account emails (verification, password reset, security alerts) and the reminders you switch on — evening check-in by email or phone notification. Product emails only if you opt in; you can opt out anytime.`],
+      ['Who can see it', 'Only you. We never sell your data. Administrators can see account details (name, email, sign-up date) and counts, never the content of your trades, expenses, journal or reviews.'],
+      ['Service providers', 'We use a few trusted companies only to run the service: Render (servers and database), Vercel (website), Brevo (sending emails) and Google Firebase Cloud Messaging (delivering phone notifications). They process data on our behalf and may not use it for anything else.'],
+      ['Advertising', `${APP_NAME} currently shows no ads. If we add them later we will update this policy and ask for your consent where required.`],
+      ['How long we keep it', 'Your data is kept while your account exists. Security logs are deleted after 90 days.'],
+      ['Your rights', 'From Profile in the app you can export all your data, change your email and notification preferences, and permanently delete your account. Deletion removes your data from our database immediately; feedback you sent is kept without your name or email.'],
+      ['Security', 'Passwords are hashed with bcrypt, data travels over HTTPS, accounts lock after repeated wrong passwords, and sessions can be revoked from every device.'],
       ['Contact', `Questions or requests: ${SUPPORT_EMAIL}`],
     ],
   },

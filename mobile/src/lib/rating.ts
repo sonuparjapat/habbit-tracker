@@ -1,5 +1,5 @@
 /**
- * "Enjoying Anchor? Rate us" — Google's own in-app review sheet.
+ * "Enjoying Holdfast? Rate us" — Google's own in-app review sheet.
  * Only at happy moments (a level-up, a new badge, a boss beaten), never in the first 5 days,
  * and at most once every 2 months. Google may still decide not to show it; that's fine.
  */

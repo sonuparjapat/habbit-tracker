@@ -135,7 +135,7 @@ export default function Profile() {
     setBusy(true);
     try {
       const data = await get('/auth/me/export');
-      await Share.share({ title: 'Anchor data export', message: JSON.stringify(data, null, 2) });
+      await Share.share({ title: 'Holdfast data export', message: JSON.stringify(data, null, 2) });
     } catch (e: any) {
       alert('Export failed', e?.message);
     } finally {
@@ -267,7 +267,7 @@ export default function Profile() {
                 if (!v) return save({ nudgePush: false });
                 const result = await enablePush().catch(() => 'unavailable' as const);
                 if (result === 'ok') await save({ nudgePush: true });
-                else if (result === 'denied') alert('Notifications are blocked', 'Allow notifications for Anchor in your phone settings, then try again.');
+                else if (result === 'denied') alert('Notifications are blocked', 'Allow notifications for Holdfast in your phone settings, then try again.');
                 else alert('Not available yet', 'Phone nudges aren’t available on this version of the app yet. Switch on the email nudge meanwhile.');
               }}
             />
@@ -293,7 +293,7 @@ export default function Profile() {
           value={remindersConsent}
           onChange={async (v) => {
             const on = await setRemindersEnabled(v, trackers ?? [], user.currency);
-            if (v && !on) alert('Notifications are blocked', 'Allow notifications for Anchor in your phone settings, then try again.');
+            if (v && !on) alert('Notifications are blocked', 'Allow notifications for Holdfast in your phone settings, then try again.');
             if (on) void refreshPushToken();
           }}
         />
@@ -337,7 +337,7 @@ export default function Profile() {
         <Button title="Delete account" variant="ghost" icon="delete-outline" onPress={() => router.push('/account/delete')} />
       </View>
       <Txt variant="caption" center style={{ marginTop: 24, color: colors.textDim, fontSize: 12 }}>
-        Anchor 1.0 · {API_URL.replace(/^https?:\/\//, '')}
+        Holdfast 1.0 · {API_URL.replace(/^https?:\/\//, '')}
       </Txt>
     </Screen>
   );

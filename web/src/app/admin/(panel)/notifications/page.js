@@ -31,7 +31,7 @@ function PhonePreview({ title, body }) {
       </div>
       <div className="notif-card">
         <div className="notif-app">
-          <span className="notif-icon">⚓</span> Anchor · now
+          <span className="notif-icon">⚓</span> Holdfast · now
         </div>
         <div className="notif-title">{title || 'Your title'}</div>
         <div className="notif-body">{body || 'Your message shows here, in the phone’s notification bar — even when the app is closed.'}</div>
@@ -103,7 +103,7 @@ export default function NotificationsPage() {
     <div className="stack" style={{ gap: 20 }}>
       <PageHeader
         title="Notifications"
-        subtitle="Send a message to members’ phones. It appears in the notification bar like any app’s, even when Anchor is closed."
+        subtitle="Send a message to members’ phones. It appears in the notification bar like any app’s, even when Holdfast is closed."
       />
       <ErrorBox error={error} onRetry={reload} />
 

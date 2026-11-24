@@ -27,6 +27,7 @@ import { z } from 'zod';
 import { query } from '../db/pool.js';
 import { requirePermission, USER_FIELDS } from '../middleware/auth.js';
 import { HttpError, isUuid, parse } from '../middleware/errors.js';
+import { deleteMember } from '../services/accounts.js';
 import { audit } from '../services/audit.js';
 import { CATEGORY_KEYS } from '../services/catalog.js';
 import { can, PERMISSIONS, ROLE_NAMES, ROLES } from '../services/roles.js';
@@ -227,7 +228,7 @@ adminRouter.post('/users/:id/verify-email', requirePermission(P.USERS_MANAGE), a
 adminRouter.delete('/users/:id', requirePermission(P.USERS_DELETE), async (req, res) => {
   const user = await getUser(req.params.id);
   assertCanActOn(req, user);
-  await query('DELETE FROM members WHERE id = $1', [user.id]);
+  await deleteMember(user.id);
   await audit(req, 'user.delete', 'user', user.id, { email: user.email });
   res.status(204).end();
 });

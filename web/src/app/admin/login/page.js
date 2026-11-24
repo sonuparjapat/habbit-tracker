@@ -36,7 +36,7 @@ function LoginForm() {
     <form className="card" onSubmit={submit}>
       <div className="brand" style={{ padding: 0 }}>
         <div className="brand-mark">⚓</div>
-        Anchor Admin
+        Holdfast Admin
       </div>
       <p className="muted" style={{ margin: 0 }}>Sign in with an admin account.</p>
       <label className="field">

@@ -36,7 +36,7 @@ Object.assign(process.env, {
   DB_POOL_MAX: '1', // PGlite serves one connection at a time
   JWT_SECRET: 'test-secret-that-is-at-least-32-characters-long',
   EMAIL_PROVIDER: 'console',
-  MAIL_FROM: 'Anchor <no-reply@test.local>',
+  MAIL_FROM: 'Holdfast <no-reply@test.local>',
   API_RATE_LIMIT: '100000', // the whole suite runs from one IP
 });
 

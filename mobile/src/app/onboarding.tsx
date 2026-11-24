@@ -69,7 +69,7 @@ function Welcome({ onNext }: { onNext: () => void }) {
         <View style={{ gap: 12 }}>
           <Txt variant="title" center style={{ fontSize: 32, lineHeight: 38 }}>Keep the promises you make to yourself</Txt>
           <Txt variant="caption" center style={{ fontSize: 16, lineHeight: 23 }}>
-            Pick what you want to change, set your own goal, and Anchor helps you show up every single day.
+            Pick what you want to change, set your own goal, and Holdfast helps you show up every single day.
           </Txt>
         </View>
         <View style={{ gap: 18, marginTop: 8 }}>

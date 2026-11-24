@@ -1,7 +1,7 @@
-# Anchor — keep the promises you make to yourself
+# Holdfast — keep the promises you make to yourself
 
 A discipline app for everyone. Users choose what they want to work on, set **their own limits**,
-and Anchor stops them *before* they break those limits. It then shows honestly what discipline was worth.
+and Holdfast stops them *before* they break those limits. It then shows honestly what discipline was worth.
 
 | Area | What users can do |
 |---|---|
@@ -162,13 +162,13 @@ In development the app reaches the backend on the computer running Metro (same W
 | | | `NODE_ENV` | ✅ | `production` (also turns database SSL on; `DB_SSL=false` to override) |
 | | | `BACKEND_URL` | ✅ | `https://api.yourdomain.com` |
 | | | `BREVO_API_KEY` | ✅ | Brevo → SMTP & API → API Keys |
-| | | `MAIL_FROM` | ✅ | `Anchor <no-reply@yourdomain.com>` (verified sender in Brevo) |
+| | | `MAIL_FROM` | ✅ | `Holdfast <no-reply@yourdomain.com>` (verified sender in Brevo) |
 | | | `PORT` | | `4000` |
 | | | `TERMS_VERSION` | | bump when Terms/Privacy change |
 | | | `AWS_REGION` / `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_BUCKET_NAME` | later | reserved for S3 file storage |
 | | | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | later | reserved for Premium payments |
 | web | `web/.env.local` | `NEXT_PUBLIC_API_URL` | ✅ | `http://localhost:4000/api` · `https://habbit-tracker-sefr.onrender.com/api` |
-| | | `NEXT_PUBLIC_APP_NAME` | | `Anchor` |
+| | | `NEXT_PUBLIC_APP_NAME` | | `Holdfast` |
 | | | `NEXT_PUBLIC_SITE_URL` | | `https://yourdomain.com` |
 | | | `NEXT_PUBLIC_PLAY_STORE_URL` | | Play Store link once published |
 | | | `NEXT_PUBLIC_SUPPORT_EMAIL` | ✅ | shown on /privacy, /terms, /delete-account |

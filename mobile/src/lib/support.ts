@@ -10,7 +10,7 @@ export function supportEmail() {
 }
 
 /** Opens the user's email app — or the in-app feedback form when no support email is set. */
-export async function contactSupport(subject = 'Help with Anchor') {
+export async function contactSupport(subject = 'Help with Holdfast') {
   const email = supportEmail();
   if (!email) {
     router.push('/feedback' as Href);

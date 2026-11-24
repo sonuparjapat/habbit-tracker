@@ -12,7 +12,7 @@ function required(name) {
 }
 
 const isProd = env('NODE_ENV') === 'production';
-const appName = env('APP_NAME') ?? 'Anchor';
+const appName = env('APP_NAME') ?? 'Holdfast';
 
 /** "Name <a@b.com>" or a bare "a@b.com" (the app name is added). */
 function parseFrom(value) {

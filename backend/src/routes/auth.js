@@ -31,6 +31,7 @@ import { config } from '../config.js';
 import { query, withTransaction } from '../db/pool.js';
 import { publicUser, requireAuth, signToken, USER_FIELDS } from '../middleware/auth.js';
 import { HttpError, parse } from '../middleware/errors.js';
+import { deleteMember } from '../services/accounts.js';
 import { CATEGORY_KEYS } from '../services/catalog.js';
 import { consumeCode, createCode } from '../services/codes.js';
 import { sendAccountLockedEmail, sendPasswordChangedEmail, sendPasswordResetCode, sendVerificationCode } from '../services/email.js';
@@ -392,13 +393,16 @@ authRouter.post('/accept-terms', requireAuth, async (req, res) => {
 /** Download everything we store about the user (data portability). */
 authRouter.get('/me/export', requireAuth, perUser(5, 60 * MIN), async (req, res) => {
   const id = req.user.id;
-  const [trackers, entries, trades, expenses, breaks, consents] = await Promise.all([
+  const [trackers, entries, trades, expenses, breaks, consents, reviews, badges, feedback] = await Promise.all([
     query('SELECT * FROM trackers WHERE user_id = $1', [id]),
     query('SELECT * FROM daily_entries WHERE user_id = $1', [id]),
     query('SELECT * FROM trades WHERE user_id = $1', [id]),
     query('SELECT * FROM expenses WHERE user_id = $1', [id]),
     query('SELECT * FROM rule_breaks WHERE user_id = $1', [id]),
     query('SELECT kind, version, granted, created_at FROM consents WHERE user_id = $1 ORDER BY created_at', [id]),
+    query('SELECT * FROM weekly_reviews WHERE user_id = $1 ORDER BY week_start', [id]),
+    query('SELECT * FROM member_achievements WHERE user_id = $1', [id]),
+    query('SELECT kind, message, status, created_at FROM feedback WHERE user_id = $1 ORDER BY created_at', [id]),
   ]);
   res.setHeader('Content-Disposition', 'attachment; filename="anchor-export.json"');
   res.json({
@@ -410,6 +414,9 @@ authRouter.get('/me/export', requireAuth, perUser(5, 60 * MIN), async (req, res)
     trades: trades.rows,
     expenses: expenses.rows,
     ruleBreaks: breaks.rows,
+    weeklyReviews: reviews.rows,
+    badges: badges.rows,
+    feedback: feedback.rows,
   });
 });
 
@@ -425,6 +432,6 @@ authRouter.delete('/me', requireAuth, perUser(10), async (req, res) => {
     if (others[0].n === 0)
       throw new HttpError(400, 'You are the only super admin. Make someone else a super admin first (npm run create-admin).', 'LAST_SUPER_ADMIN');
   }
-  await query('DELETE FROM members WHERE id = $1', [req.user.id]);
+  await deleteMember(req.user.id);
   res.status(204).end();
 });

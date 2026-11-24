@@ -16,7 +16,7 @@ export default function Invite() {
   if (error || !data) return <Screen edges={['bottom']}><ErrorView error={error} onRetry={refetch} /></Screen>;
 
   const link = settings.play_store_url || settings.website_url;
-  const message = `I'm building better habits with Anchor — streaks, a forest that grows with every promise kept, and a weekly boss to beat. Join me with my code ${data.code}${link ? `: ${link}` : ''}`;
+  const message = `I'm building better habits with Holdfast — streaks, a forest that grows with every promise kept, and a weekly boss to beat. Join me with my code ${data.code}${link ? `: ${link}` : ''}`;
 
   const copy = async () => {
     await Clipboard.setStringAsync(data.code);

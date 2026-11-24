@@ -1,6 +1,6 @@
 # Play Store launch kit
 
-Everything to fill in Google Play Console for **Anchor** (`com.anchor.discipline`), plus the money plan (free → ads → premium).
+Everything to fill in Google Play Console for **Holdfast** (`com.anchor.discipline`), plus the money plan (free → ads → premium).
 
 ## 1. Before you upload
 
@@ -12,13 +12,13 @@ Everything to fill in Google Play Console for **Anchor** (`com.anchor.discipline
 
 ## 2. Store listing
 
-**App name:** Anchor: Habit & Discipline
+**App name:** Holdfast: Habits & Discipline
 
 **Short description (max 80 characters):**
 > Build habits, quit bad ones, set limits that hold — and grow your own forest.
 
 **Full description:**
-> Anchor helps you keep the promises you make to yourself.
+> Holdfast helps you keep the promises you make to yourself.
 >
 > ✅ HABITS: workouts, reading, sleep, water, meditation and more. Check in daily and build streaks you won't want to break.
 > 🚭 QUIT & LIMIT: smoking, alcohol, social media, junk food. Set your own daily limit and see every day you stayed under it.
@@ -60,13 +60,16 @@ Everything to fill in Google Play Console for **Anchor** (`com.anchor.discipline
 | Email address | Yes | No | Account management, communications (verification codes) | Required for an account |
 | User IDs | Yes | No | Account management | Required |
 | Other financial info (trades / expenses the user types in) | Yes | No | App functionality | Optional (only if they use those trackers) |
-| App activity: other user-generated content (habits, journal notes) | Yes | No | App functionality | Optional |
-| App info: crash logs / diagnostics | No | — | — | — |
-| Location, contacts, photos, audio, device ID | **No** | — | — | — |
+| App activity: other user-generated content (habits, journal notes, weekly reviews) | Yes | No | App functionality | Optional |
+| App activity: other actions (check-ins, streaks, badges) | Yes | No | App functionality | Required for an account |
+| Device or other IDs (phone-notification token; IP address of sign-in attempts) | Yes | No | App functionality (notifications), Fraud prevention, security & compliance | Notification token optional; security log required |
+| App info and performance: crash logs (sent automatically if the app crashes: error message, app version, platform) | Yes | No | Analytics (fixing bugs) | Required |
+| Location, contacts, photos, audio, advertising ID | **No** | — | — | — |
 
 - Data is **encrypted in transit**: yes (HTTPS).
-- Users **can request deletion**: yes.
-- Brevo only *delivers* the emails for us. Google counts that as a service provider, not "sharing".
+- Users **can request deletion**: yes (in the app, and at `/delete-account` on the website).
+- Render, Vercel, Brevo and Firebase only *process* data for us. Google counts them as service providers, not "sharing".
+- Keep this table and the Privacy Policy (`web/src/lib/legal.js` and `mobile/src/app/legal/[doc].tsx`) saying the same thing. Google rejects apps whose Data safety answers and policy don't match.
 
 > The Android build blocks the advertising-ID permission (`AD_ID`) while there are no ads, so the "Advertising ID" declaration is **No**. Remove that block when ads are added (§5).
 

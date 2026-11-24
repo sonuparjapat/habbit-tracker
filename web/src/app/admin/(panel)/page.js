@@ -33,7 +33,7 @@ export default function DashboardPage() {
 
   return (
     <div className="stack" style={{ gap: 24 }}>
-      <PageHeader title="Dashboard" subtitle="How Anchor is doing right now.">
+      <PageHeader title="Dashboard" subtitle="How Holdfast is doing right now.">
         <button className="btn" onClick={() => { overview.reload(); analytics.reload(); }}>Refresh</button>
       </PageHeader>
 

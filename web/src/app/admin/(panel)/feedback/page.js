@@ -65,7 +65,7 @@ function FeedbackDrawer({ item, onClose, onChanged }) {
   const [note, setNote] = useState(item.adminNote ?? '');
   const { run, busy } = useAction(toast);
   const update = (body, success) => run(() => patch(`/admin/feedback/${item.id}`, body), { success, after: onChanged });
-  const subject = encodeURIComponent(`Re: your ${KINDS[item.kind].label.toLowerCase()} — Anchor`);
+  const subject = encodeURIComponent(`Re: your ${KINDS[item.kind].label.toLowerCase()} — Holdfast`);
   const quoted = encodeURIComponent(`\n\n---\nYou wrote:\n${item.message}`);
 
   return (

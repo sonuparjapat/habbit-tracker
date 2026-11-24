@@ -125,7 +125,7 @@ export function AdminShell({ children }) {
         <aside className="sidebar">
           <div className="brand">
             <div className="brand-mark">⚓</div>
-            Anchor <span className="badge violet">Admin</span>
+            Holdfast <span className="badge violet">Admin</span>
             <ThemeToggle />
           </div>
           {visible.map((n) =>

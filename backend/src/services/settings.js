@@ -31,7 +31,7 @@ export const SETTINGS = {
   // Access
   signups_enabled: { group: 'Access', label: 'Allow new sign-ups', type: 'boolean', default: true, public: true, description: 'Turn off to stop new accounts (existing users can still sign in).' },
   maintenance_mode: { group: 'Access', label: 'Maintenance mode', type: 'boolean', default: false, public: true, description: 'Users see a maintenance screen. Admins can still use the admin panel.' },
-  maintenance_message: { group: 'Access', label: 'Maintenance message', type: 'text', default: 'We’re making Anchor better. We’ll be back shortly.', public: true },
+  maintenance_message: { group: 'Access', label: 'Maintenance message', type: 'text', default: 'We’re making Holdfast better. We’ll be back shortly.', public: true },
 
   // App versions
   min_app_version: { group: 'App versions', label: 'Minimum app version', type: 'string', default: '1.0.0', public: true, description: 'Apps older than this must update before they can be used (e.g. after a breaking change).' },
@@ -131,10 +131,10 @@ export const SETTINGS = {
     public: true,
     description: 'One step per line, written as:  emoji | title | text',
     default: [
-      '👋 | Welcome to Anchor | This is where you build habits that stick and break the ones that don’t. Here’s how it works in 30 seconds.',
+      '👋 | Welcome to Holdfast | This is where you build habits that stick and break the ones that don’t. Here’s how it works in 30 seconds.',
       '🎯 | Pick what you want to change | Tap + to add a tracker — a workout, reading, quitting smoking, a daily budget, trading limits, or your own.',
       '✅ | Check in every day | Tap a habit when it’s done. Each day you show up grows your streak 🔥 — miss one and it resets.',
-      '🛡️ | Set limits that hold you back | Daily limits, budgets and trading rules. Try to cross them and Anchor stops you first.',
+      '🛡️ | Set limits that hold you back | Daily limits, budgets and trading rules. Try to cross them and Holdfast stops you first.',
       '🏆 | Earn XP, levels & badges | Every kept promise earns XP. Breaking a rule costs you. Watch yourself level up.',
       '📊 | See the truth | Weekly and monthly reports show your best days, weak spots and what’s really working.',
     ],

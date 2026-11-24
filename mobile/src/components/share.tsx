@@ -32,7 +32,7 @@ function Card({ card, link }: { card: ShareCardData; link: string }) {
         {card.subtitle ? <Txt variant="caption" center>{card.subtitle}</Txt> : null}
       </View>
       <View style={{ alignItems: 'center', gap: 2 }}>
-        <Txt variant="h3">⚓ Anchor</Txt>
+        <Txt variant="h3">⚓ Holdfast</Txt>
         <Txt variant="caption" style={{ fontSize: 12 }}>{link || 'Build habits that stick'}</Txt>
       </View>
     </Gradient>
@@ -45,7 +45,7 @@ export function ShareButton({ card, label = 'Share', small = true }: { card: Sha
   const ref = useRef<ComponentRef<typeof View>>(null);
   const { settings } = useAppConfig();
   const link = settings.play_store_url || settings.website_url;
-  const text = `${card.emoji} ${card.title}${card.stat ? ` — ${card.stat}` : ''}. I'm building better habits with Anchor${link ? `: ${link}` : '.'}`;
+  const text = `${card.emoji} ${card.title}${card.stat ? ` — ${card.stat}` : ''}. I'm building better habits with Holdfast${link ? `: ${link}` : '.'}`;
 
   const share = async () => {
     setBusy(true);

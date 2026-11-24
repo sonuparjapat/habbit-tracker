@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { query } from '../src/db/pool.js';
 import { api, lastCode, settle, TZ, uniqueEmail } from './helpers.js';
 
 test('auth: sign up, verify email, passwords, export, delete', async () => {
@@ -69,13 +70,18 @@ test('auth: sign up, verify email, passwords, export, delete', async () => {
   assert.equal(r.status, 200);
   assert.ok(r.body.consents.length >= 3);
 
-  // Delete my account
+  // Delete my account (feedback they sent stays for the admin, but without their email)
+  r = await api('POST', '/feedback', { kind: 'idea', message: 'Please add a water tracker widget' }, token);
+  assert.equal(r.status, 201);
   r = await api('DELETE', '/auth/me', { password: 'wrong' }, token);
   assert.equal(r.status, 400, 'delete needs the right password');
   r = await api('DELETE', '/auth/me', { password: 'resetpass123' }, token);
   assert.equal(r.status, 204);
   assert.equal((await api('GET', '/auth/me', null, token)).status, 401);
   assert.equal((await api('POST', '/auth/login', { email, password: 'resetpass123' })).status, 401);
+  // Their feedback is kept for the admin, but no longer shows their email
+  assert.equal((await query('SELECT count(*)::int AS n FROM feedback WHERE email = $1', [email])).rows[0].n, 0);
+  assert.equal((await query(`SELECT count(*)::int AS n FROM feedback WHERE message = 'Please add a water tracker widget' AND email IS NULL`)).rows[0].n, 1);
 });
 
 test('auth: login takes similar time for unknown and known emails', async () => {

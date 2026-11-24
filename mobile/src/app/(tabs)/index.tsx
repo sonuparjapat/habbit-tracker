@@ -112,7 +112,7 @@ export default function Today() {
       <SyncStatus />
 
       {user?.termsOutdated ? (
-        <Banner icon="file-document-edit-outline" color={colors.blue} title="We updated our Terms & Privacy Policy" message="Please review and accept to keep using Anchor." action="Accept updated terms" onPress={() => void acceptTerms()} />
+        <Banner icon="file-document-edit-outline" color={colors.blue} title="We updated our Terms & Privacy Policy" message="Please review and accept to keep using Holdfast." action="Accept updated terms" onPress={() => void acceptTerms()} />
       ) : null}
       {user && !user.emailVerified ? (
         <Banner icon="email-alert-outline" color={colors.amber} title="Verify your email" message="It lets you recover your account if you forget your password." action="Enter code" onPress={() => router.push('/verify-email')} />

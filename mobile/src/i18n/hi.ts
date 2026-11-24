@@ -54,7 +54,7 @@ export const HI: Record<string, string> = {
   'Could not save': 'सेव नहीं हो सका',
   'Export failed': 'एक्सपोर्ट नहीं हो सका',
   'Notifications are blocked': 'नोटिफ़िकेशन बंद हैं',
-  'Allow notifications for Anchor in your phone settings, then try again.': 'फ़ोन की सेटिंग में Anchor के नोटिफ़िकेशन चालू करें, फिर कोशिश करें।',
+  'Allow notifications for Holdfast in your phone settings, then try again.': 'फ़ोन की सेटिंग में Holdfast के नोटिफ़िकेशन चालू करें, फिर कोशिश करें।',
   'Not available yet': 'अभी उपलब्ध नहीं',
   'Phone nudges aren’t available on this version of the app yet. Switch on the email nudge meanwhile.': 'इस वर्ज़न में फ़ोन नोटिफ़िकेशन अभी उपलब्ध नहीं। तब तक ईमेल वाला विकल्प चालू करें।',
   // Phrases found missing in the last scan
@@ -176,9 +176,9 @@ export const HI: Record<string, string> = {
   'not verified yet': 'अभी सत्यापित नहीं',
 
   // Welcome, onboarding, guest
-  Anchor: 'Anchor',
+  Holdfast: 'Holdfast',
   'Keep the promises you make to yourself': 'ख़ुद से किए वादे निभाइए',
-  'Pick what you want to change, set your own goal, and Anchor helps you show up every single day.': 'चुनिए आप क्या बदलना चाहते हैं, अपना लक्ष्य तय कीजिए, और Anchor आपको हर दिन टिके रहने में मदद करेगा।',
+  'Pick what you want to change, set your own goal, and Holdfast helps you show up every single day.': 'चुनिए आप क्या बदलना चाहते हैं, अपना लक्ष्य तय कीजिए, और Holdfast आपको हर दिन टिके रहने में मदद करेगा।',
   'Build any habit — workouts, reading, sleep, meditation, saving': 'कोई भी आदत बनाएँ — कसरत, पढ़ना, नींद, ध्यान, बचत',
   'Quit or cut down — smoking, alcohol, social media, junk food': 'छोड़ें या कम करें — सिगरेट, शराब, सोशल मीडिया, जंक फ़ूड',
 
@@ -258,7 +258,7 @@ export const HI: Record<string, string> = {
   'Email me a new code': 'नया कोड ईमेल करें',
   'Reset my password instead': 'इसके बजाय पासवर्ड रीसेट करें',
   'Accept updated terms': 'नई शर्तें स्वीकार करें',
-  'Please review and accept to keep using Anchor.': 'Anchor इस्तेमाल करते रहने के लिए कृपया देखें और स्वीकार करें।',
+  'Please review and accept to keep using Holdfast.': 'Holdfast इस्तेमाल करते रहने के लिए कृपया देखें और स्वीकार करें।',
 
   // Today
   'Today’s discipline': 'आज का अनुशासन',
@@ -680,7 +680,7 @@ export const HI: Record<string, string> = {
   Language: 'भाषा',
 
   // Feedback
-  'Tell us what’s working, what isn’t, or what you wish Anchor did. It goes straight to the team.': 'बताइए क्या अच्छा है, क्या नहीं, या आप Anchor में क्या चाहते हैं। सीधे टीम तक जाता है।',
+  'Tell us what’s working, what isn’t, or what you wish Holdfast did. It goes straight to the team.': 'बताइए क्या अच्छा है, क्या नहीं, या आप Holdfast में क्या चाहते हैं। सीधे टीम तक जाता है।',
   'Your message': 'आपका संदेश',
   'Something’s broken': 'कुछ टूटा हुआ है',
   'I have an idea': 'मेरे पास एक आइडिया है',

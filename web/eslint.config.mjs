@@ -1,8 +1,15 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
+import globals from "globals";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
+  // Catch names that are used but never imported/defined (e.g. a missing `useEffect` import)
+  {
+    files: ["src/**/*.{js,jsx}"],
+    languageOptions: { globals: globals.browser },
+    rules: { "no-undef": "error" },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

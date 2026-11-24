@@ -25,7 +25,7 @@ function Logo() {
       <Gradient colors={gradients.primary} style={{ width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name="anchor" size={20} />
       </Gradient>
-      <Txt variant="h2">Anchor</Txt>
+      <Txt variant="h2">Holdfast</Txt>
     </Row>
   );
 }
@@ -246,7 +246,7 @@ export function GuestHome() {
       <Gradient colors={['#271D5E', '#121628']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} sheen style={{ borderRadius: radius.xl, padding: 26, borderWidth: 1, borderColor: '#352B78' }}>
         <Txt variant="title" style={{ fontSize: 30, lineHeight: 37 }}>Build habits that stick. Break the ones that don’t.</Txt>
         <Txt color="#B8BFD0" style={{ marginTop: 12 }}>
-          Workouts, reading, sleep, quitting smoking, spending less — pick what matters to you, set your own goal, and Anchor keeps you on track every day.
+          Workouts, reading, sleep, quitting smoking, spending less — pick what matters to you, set your own goal, and Holdfast keeps you on track every day.
         </Txt>
         {chosen.length ? (
           <Row gap={8} style={{ flexWrap: 'wrap', marginTop: 18 }}>

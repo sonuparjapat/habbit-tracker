@@ -16,11 +16,12 @@ async function main() {
     if (config.email.problem) console.warn(`⚠️  EMAIL NOT WORKING: ${config.email.problem}`);
   });
 
-  // Housekeeping: used/expired one-time codes are useless after a day
+  // Housekeeping: used/expired one-time codes are useless after a day; the security log is kept 90 days
   const cleanup = () =>
-    pool
-      .query(`DELETE FROM email_codes WHERE expires_at < now() - interval '1 day'`)
-      .catch((err) => console.error('cleanup failed:', err.message));
+    Promise.all([
+      pool.query(`DELETE FROM email_codes WHERE expires_at < now() - interval '1 day'`),
+      pool.query(`DELETE FROM security_events WHERE created_at < now() - interval '90 days'`),
+    ]).catch((err) => console.error('cleanup failed:', err.message));
   void cleanup();
   const cleanupTimer = setInterval(cleanup, 60 * 60 * 1000);
   cleanupTimer.unref();

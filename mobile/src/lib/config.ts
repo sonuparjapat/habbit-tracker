@@ -60,7 +60,7 @@ export interface AppConfig {
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
-  appName: 'Anchor',
+  appName: 'Holdfast',
   announcements: [],
   settings: {
     support_email: process.env.EXPO_PUBLIC_SUPPORT_EMAIL || '',
